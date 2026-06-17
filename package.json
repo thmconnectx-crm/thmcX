@@ -1,0 +1,22 @@
+{
+  "name": "thmix-whatsapp-prospecting",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CRM de prospeccao ativa controlada com WhatsApp Cloud API, IA de pre-atendimento e handoff humano.",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build -w server && npm run build -w client",
+    "start": "npm run start -w server",
+    "inbound-worker": "npm run inbound-worker -w server",
+    "worker": "npm run worker -w server",
+    "lint": "npm run lint -w server && npm run lint -w client",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

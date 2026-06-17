@@ -3,7 +3,7 @@ services:
     name: thm-connectx-api
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build -w server
+    buildCommand: npm install --include=dev && npm run build -w server
     startCommand: npm run start -w server
     healthCheckPath: /health
     envVars:
@@ -41,7 +41,7 @@ services:
   - type: web
     name: thm-connectx-panel
     runtime: static
-    buildCommand: npm install && npm run build -w client
+    buildCommand: npm install --include=dev && npm run build -w client
     staticPublishPath: client/dist
     envVars:
       - key: VITE_API_URL

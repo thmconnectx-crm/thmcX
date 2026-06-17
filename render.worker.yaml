@@ -3,7 +3,7 @@ services:
     name: thm-connectx-api
     runtime: node
     plan: starter
-    buildCommand: npm install && npm run build -w server
+    buildCommand: npm install --include=dev && npm run build -w server
     startCommand: npm run start -w server
     healthCheckPath: /health
     envVars:
@@ -44,7 +44,7 @@ services:
     name: thm-connectx-worker
     runtime: node
     plan: starter
-    buildCommand: npm install && npm run build -w server
+    buildCommand: npm install --include=dev && npm run build -w server
     startCommand: npm run worker -w server
     envVars:
       - key: NODE_ENV
@@ -70,7 +70,7 @@ services:
     name: thm-connectx-inbound-worker
     runtime: node
     plan: starter
-    buildCommand: npm install && npm run build -w server
+    buildCommand: npm install --include=dev && npm run build -w server
     startCommand: npm run inbound-worker
     envVars:
       - key: NODE_ENV
@@ -99,7 +99,7 @@ services:
   - type: web
     name: thm-connectx-panel
     runtime: static
-    buildCommand: npm install && npm run build -w client
+    buildCommand: npm install --include=dev && npm run build -w client
     staticPublishPath: client/dist
     envVars:
       - key: VITE_API_URL

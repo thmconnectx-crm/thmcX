@@ -5,6 +5,7 @@ import {
   createCampaign,
   getCampaign,
   listCampaigns,
+  processNextCampaignLead,
   setCampaignStatus,
   startCampaign,
   updateCampaign
@@ -45,6 +46,13 @@ router.post(
   "/:id/start",
   asyncRoute(async (req, res) => {
     res.json(await startCampaign(req.user!.tenantId, req.params.id));
+  })
+);
+
+router.post(
+  "/:id/process-next",
+  asyncRoute(async (req, res) => {
+    res.json(await processNextCampaignLead(req.user!.tenantId, req.params.id));
   })
 );
 

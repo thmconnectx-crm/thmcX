@@ -161,6 +161,9 @@ async function checkSupabase(): Promise<SystemCheck> {
 }
 
 async function checkRedis(): Promise<SystemCheck> {
+  if (env.QUEUE_MODE === "manual") {
+    return connected("redis_connected", "Redis conectado", "Modo manual ativo: Redis nao e necessario nesta validacao.");
+  }
   if (!env.REDIS_URL) return pending("redis_connected", "Redis conectado", "Configure REDIS_URL no ambiente da API e do worker.");
 
   let redis: Redis | null = null;
@@ -281,6 +284,9 @@ async function checkWebhookVerified(): Promise<SystemCheck> {
 }
 
 async function checkWorkerHeartbeat(): Promise<SystemCheck> {
+  if (env.QUEUE_MODE === "manual") {
+    return connected("worker_running", "Worker de disparos rodando", "Modo manual/free ativo: disparos sao acionados pelo painel.");
+  }
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "REDIS_URL"]);
   if (missing.length) {
     return pending("worker_running", "Worker de disparos rodando", `Configure ${missing.join(", ")} no ambiente da API e do worker.`);
@@ -310,6 +316,13 @@ async function checkWorkerHeartbeat(): Promise<SystemCheck> {
 }
 
 async function checkInboundWorkerHeartbeat(): Promise<SystemCheck> {
+  if (env.QUEUE_MODE === "manual") {
+    return connected(
+      "inbound_worker_running",
+      "Worker de mensagens recebidas rodando",
+      "Modo manual/free ativo: webhooks recebidos sao processados pela propria API."
+    );
+  }
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "REDIS_URL"]);
   if (missing.length) {
     return pending(

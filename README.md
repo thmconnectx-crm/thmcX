@@ -56,10 +56,17 @@ Configure no painel Meta:
 
 ## Deploy
 
+O projeto tem dois modos de deploy:
+
+- `render.yaml`: modo Free/manual para validar oferta, templates, leads e envio controlado sem Redis/worker.
+- `render.worker.yaml`: modo Starter/worker para disparos em fila com Redis e BullMQ quando a validacao comercial estiver pronta.
+
+No modo manual, campanhas ficam ativas, mas o envio e acionado pelo botao `Enviar proximo` no painel. Webhooks recebidos sao processados pela propria API.
+
 Backend e workers podem rodar em Render/Railway usando o mesmo codigo:
 
 - API: `npm run start -w server`
 - Worker: `npm run worker -w server`
 - Worker inbound: `npm run inbound-worker`
 
-Configure Redis, Supabase e variaveis de ambiente nos services. Veja `docs/DEPLOY.md` e `render.yaml`.
+Configure Supabase e variaveis de ambiente nos services. Redis so e obrigatorio ao usar `render.worker.yaml`. Veja `docs/DEPLOY.md`.

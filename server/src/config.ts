@@ -3,6 +3,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
+  QUEUE_MODE: z.enum(["worker", "manual"]).default("worker"),
   PORT: z.coerce.number().default(4000),
   CLIENT_ORIGIN: z.string().default("http://localhost:5173"),
   SUPABASE_URL: z.string().default(""),

@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "../config.js";
 import { supabase } from "../db.js";
-import { inboundQueue } from "../queues/inboundQueue.js";
+import { handleInboundMessage } from "../services/conversation.service.js";
 import { asyncRoute } from "../utils/asyncRoute.js";
 
 const router = Router();
@@ -40,11 +40,16 @@ router.post(
           const from = message.from as string | undefined;
           const body = message.text?.body as string | undefined;
           if (from && body) {
-            await inboundQueue.add(
-              `inbound:${message.id ?? `${from}:${Date.now()}`}`,
-              { from, body, whatsappMessageId: message.id },
-              { jobId: message.id ? `whatsapp:${message.id}` : undefined }
-            );
+            if (env.QUEUE_MODE === "manual") {
+              await handleInboundMessage(from, body, message.id);
+            } else {
+              const { inboundQueue } = await import("../queues/inboundQueue.js");
+              await inboundQueue.add(
+                `inbound:${message.id ?? `${from}:${Date.now()}`}`,
+                { from, body, whatsappMessageId: message.id },
+                { jobId: message.id ? `whatsapp:${message.id}` : undefined }
+              );
+            }
           }
         }
       }

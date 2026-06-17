@@ -1061,6 +1061,9 @@ function CampaignsView() {
                   <Play size={16} />
                   Iniciar
                 </button>
+                <button className="btn-secondary" onClick={() => action(campaign.id, "process-next")}>
+                  Enviar proximo
+                </button>
                 <button className="btn-secondary" onClick={() => action(campaign.id, "pause")}>
                   <Pause size={16} />
                   Pausar

@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { env } from "../config.js";
 import { assertDb, supabase } from "../db.js";
-import { sendQueue } from "../queues/sendQueue.js";
+import { getOrCreateConversation } from "./conversation.service.js";
+import { sendWhatsAppTemplate } from "./whatsapp.service.js";
 import { randomDelayMs } from "../utils/time.js";
 
 const campaignBaseSchema = z.object({
@@ -139,6 +141,16 @@ export async function startCampaign(tenantId: string, id: string) {
       .eq("status", "pending")
   ) as Array<{ id: string; lead_id: string }>;
 
+  if (env.QUEUE_MODE === "manual") {
+    return {
+      mode: "manual",
+      queued: 0,
+      pending: pending.length,
+      message: "Modo manual ativo. Use Enviar proximo para processar um lead por vez."
+    };
+  }
+
+  const { sendQueue } = await import("../queues/sendQueue.js");
   let delay = 0;
   for (const item of pending) {
     await sendQueue.add(
@@ -150,6 +162,147 @@ export async function startCampaign(tenantId: string, id: string) {
   }
 
   return { queued: pending.length };
+}
+
+export async function processNextCampaignLead(tenantId: string, id: string) {
+  const campaign = assertDb(await supabase.from("campaigns").select("*").eq("id", id).eq("tenant_id", tenantId).single()) as {
+    id: string;
+    status: string;
+    message_body: string;
+    template_id?: string | null;
+    template_name?: string | null;
+    language_code: string;
+    template_variables?: string[];
+    daily_limit: number;
+    allowed_start_time: string;
+    allowed_end_time: string;
+    consecutive_errors?: number;
+  };
+
+  if (campaign.status !== "active") {
+    return { skipped: "campaign_not_active", message: "Inicie a campanha antes de enviar manualmente." };
+  }
+
+  const template = await resolveApprovedTemplate(tenantId, campaign.template_id, campaign.template_name);
+  if (!template) throw new Error("Campanha precisa de template aprovado do WhatsApp");
+
+  const next = assertDb(
+    await supabase
+      .from("campaign_leads")
+      .select("id, lead_id, attempts, status")
+      .eq("campaign_id", id)
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+  ) as { id: string; lead_id: string; attempts: number; status: string } | null;
+
+  if (!next) return { sent: false, message: "Nao ha leads pendentes nesta campanha." };
+
+  const lead = assertDb(await supabase.from("leads").select("*").eq("id", next.lead_id).eq("tenant_id", tenantId).single()) as {
+    id: string;
+    name?: string;
+    phone: string;
+    opt_out: boolean;
+    opt_in_status: "unknown" | "authorized" | "denied";
+  };
+
+  if (lead.opt_out) {
+    await supabase.from("campaign_leads").update({ status: "blocked_opt_out" }).eq("id", next.id).eq("tenant_id", tenantId);
+    await supabase.from("send_logs").insert({ tenant_id: tenantId, campaign_id: id, lead_id: lead.id, status: "blocked_opt_out" });
+    return { skipped: "opt_out", message: "Lead bloqueado por opt-out." };
+  }
+
+  if (lead.opt_in_status !== "authorized") {
+    await supabase.from("campaign_leads").update({ status: "blocked_no_opt_in" }).eq("id", next.id).eq("tenant_id", tenantId);
+    await supabase.from("send_logs").insert({
+      tenant_id: tenantId,
+      campaign_id: id,
+      lead_id: lead.id,
+      status: "blocked_no_opt_in",
+      error: "Lead sem autorizacao opt-in"
+    });
+    return { skipped: "no_opt_in", message: "Lead sem autorizacao opt-in." };
+  }
+
+  if (next.attempts > 1) {
+    await supabase.from("campaign_leads").update({ status: "failed" }).eq("id", next.id).eq("tenant_id", tenantId);
+    return { skipped: "attempt_limit", message: "Limite de tentativas atingido para este lead." };
+  }
+
+  try {
+    const conversation = await getOrCreateConversation(lead.id, tenantId);
+    const variables = renderTemplateVariables(campaign.template_variables ?? [], lead);
+    const preview = renderPreview(template.body_preview ?? campaign.message_body, variables, lead);
+    const sent = await sendWhatsAppTemplate(lead.phone, template.whatsapp_template_name, template.language_code, variables);
+    const message = assertDb(
+      await supabase
+        .from("messages")
+        .insert({
+          tenant_id: tenantId,
+          conversation_id: conversation.id,
+          lead_id: lead.id,
+          direction: "outbound",
+          sender_type: "campaign",
+          body: preview,
+          whatsapp_message_id: sent.id,
+          status: "sent"
+        })
+        .select("*")
+        .single()
+    ) as { id: string };
+
+    await supabase
+      .from("campaign_leads")
+      .update({
+        status: "sent",
+        attempts: next.attempts + 1,
+        sent_at: new Date().toISOString(),
+        error_message: null
+      })
+      .eq("id", next.id)
+      .eq("tenant_id", tenantId);
+    await supabase
+      .from("leads")
+      .update({ last_contact_at: new Date().toISOString(), status: "contatado" })
+      .eq("id", lead.id)
+      .eq("tenant_id", tenantId);
+    await supabase.from("campaigns").update({ consecutive_errors: 0 }).eq("id", id).eq("tenant_id", tenantId);
+    await supabase.from("send_logs").insert({
+      tenant_id: tenantId,
+      campaign_id: id,
+      lead_id: lead.id,
+      message_id: message.id,
+      status: "sent"
+    });
+
+    return { sent: true, lead_id: lead.id, message_id: message.id };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
+    await supabase
+      .from("campaign_leads")
+      .update({
+        status: next.attempts >= 1 ? "failed" : "pending",
+        attempts: next.attempts + 1,
+        error_message: message
+      })
+      .eq("id", next.id)
+      .eq("tenant_id", tenantId);
+    await supabase
+      .from("campaigns")
+      .update({ consecutive_errors: (campaign.consecutive_errors ?? 0) + 1 })
+      .eq("id", id)
+      .eq("tenant_id", tenantId);
+    await supabase.from("send_logs").insert({
+      tenant_id: tenantId,
+      campaign_id: id,
+      lead_id: lead.id,
+      status: "error",
+      error: message
+    });
+    throw error;
+  }
 }
 
 export async function setCampaignStatus(tenantId: string, id: string, status: "paused" | "stopped") {
@@ -171,10 +324,28 @@ async function resolveApprovedTemplate(tenantId: string, templateId?: string | n
   if (!templateId && templateName) query = query.eq("whatsapp_template_name", templateName);
   const result = await query.single();
   if (result.error) throw new Error("Campanha precisa de template aprovado do WhatsApp");
-  return result.data as { id: string; whatsapp_template_name: string; language_code: string };
+  return result.data as { id: string; whatsapp_template_name: string; language_code: string; body_preview?: string | null };
 }
 
 async function assertCampaignTemplateApproved(tenantId: string, templateId?: string | null, templateName?: string | null) {
   const template = await resolveApprovedTemplate(tenantId, templateId, templateName);
   if (!template) throw new Error("Campanha precisa de template aprovado do WhatsApp");
+}
+
+function renderTemplateVariables(variables: string[], lead: { name?: string; phone: string }) {
+  return variables.map((variable) =>
+    variable
+      .replaceAll("[nome]", lead.name ?? "")
+      .replaceAll("[telefone]", lead.phone)
+      .replaceAll("{{name}}", lead.name ?? "")
+      .replaceAll("{{phone}}", lead.phone)
+  );
+}
+
+function renderPreview(preview: string, variables: string[], lead: { name?: string; phone: string }) {
+  let rendered = preview.replaceAll("[nome]", lead.name ?? "").replaceAll("[telefone]", lead.phone);
+  variables.forEach((value, index) => {
+    rendered = rendered.replaceAll(`{{${index + 1}}}`, value);
+  });
+  return rendered;
 }

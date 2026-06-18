@@ -7,16 +7,26 @@ import { asyncRoute } from "../utils/asyncRoute.js";
 
 const router = Router();
 
-router.get("/whatsapp", (req, res) => {
+router.get(
+  "/whatsapp",
+  asyncRoute(async (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
   if (mode === "subscribe" && token === env.WHATSAPP_VERIFY_TOKEN) {
+    await supabase.from("settings").upsert(
+      {
+        key: "whatsapp_webhook_verified",
+        value: { verified: true, updated_at: new Date().toISOString() }
+      },
+      { onConflict: "key" }
+    );
     return res.status(200).send(challenge);
   }
   return res.sendStatus(403);
-});
+  })
+);
 
 router.post(
   "/whatsapp",

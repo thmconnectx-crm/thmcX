@@ -27,7 +27,6 @@ type SetupStatus = {
   template_approved: boolean;
   worker_running: boolean;
   inbound_worker_running: boolean;
-  demo_mode: boolean;
 };
 
 const checkGroups = {
@@ -69,13 +68,6 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     checkApprovedTemplate(tenantId)
   ]);
 
-  const demoStatus = makeCheck({
-    key: "demo_mode",
-    label: "Dados reais ativos",
-    status: "connected",
-    message: "O painel está usando a API e o banco configurados no ambiente."
-  });
-
   const checks = [
     supabaseStatus,
     redisStatus,
@@ -86,7 +78,6 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     webhookStatus,
     workerStatus,
     inboundWorkerStatus,
-    demoStatus,
     templateStatus
   ];
 
@@ -102,8 +93,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     webhook_verified: webhookStatus.status === "connected",
     template_approved: templateStatus.status === "connected",
     worker_running: workerStatus.status === "connected",
-    inbound_worker_running: inboundWorkerStatus.status === "connected",
-    demo_mode: false
+    inbound_worker_running: inboundWorkerStatus.status === "connected"
   };
 }
 
@@ -132,13 +122,6 @@ async function runCheckByKey(tenantId: string, key: string): Promise<SystemCheck
     webhook_verified: checkWebhookVerified,
     worker_running: checkWorkerHeartbeat,
     inbound_worker_running: checkInboundWorkerHeartbeat,
-    demo_mode: () =>
-      makeCheck({
-        key: "demo_mode",
-        label: "Dados reais ativos",
-        status: "connected",
-        message: "O painel está usando a API e o banco configurados no ambiente."
-      }),
     templates_available: () => checkApprovedTemplate(tenantId),
     template_approved: () => checkApprovedTemplate(tenantId)
   };
@@ -285,7 +268,7 @@ async function checkWebhookVerified(): Promise<SystemCheck> {
 
 async function checkWorkerHeartbeat(): Promise<SystemCheck> {
   if (env.QUEUE_MODE === "manual") {
-    return connected("worker_running", "Worker de disparos rodando", "Modo manual/free ativo: disparos são acionados pelo painel.");
+    return connected("worker_running", "Worker de disparos rodando", "Modo manual ativo: disparos são acionados pelo painel.");
   }
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "REDIS_URL"]);
   if (missing.length) {
@@ -320,7 +303,7 @@ async function checkInboundWorkerHeartbeat(): Promise<SystemCheck> {
     return connected(
       "inbound_worker_running",
       "Worker de mensagens recebidas rodando",
-      "Modo manual/free ativo: webhooks recebidos são processados pela própria API."
+      "Modo manual ativo: webhooks recebidos são processados pela própria API."
     );
   }
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "REDIS_URL"]);

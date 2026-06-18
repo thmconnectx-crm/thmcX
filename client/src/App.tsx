@@ -183,7 +183,7 @@ export function App() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{tabDescriptions[tab]}</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="hidden text-xs text-tertiary xl:inline">Produto da ThM IX Company</span>
+              <span className="hidden text-xs text-tertiary xl:inline">Ambiente operacional</span>
             </div>
           </div>
           <nav className="flex gap-2 overflow-x-auto px-4 pb-3 lg:hidden">
@@ -657,7 +657,7 @@ function ConnectionsView() {
             </div>
           </div>
 
-          <ConnectionConfig source={selected ?? sources[0]} />
+          <ConnectionConfig source={selected ?? undefined} />
         </div>
       </div>
     </section>
@@ -823,7 +823,7 @@ function ConnectionConfig({ source }: { source?: LeadSource }) {
   if (!source) {
     return (
       <div className="panel p-6 text-sm text-muted">
-        Crie ou selecione uma fonte para ver URL, token, payload de exemplo, embed e logs.
+        Crie ou selecione uma fonte para ver URL, token, payload, embed e logs.
       </div>
     );
   }
@@ -855,7 +855,7 @@ function ConnectionConfig({ source }: { source?: LeadSource }) {
         </button>
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <InfoBlock title="URL única" value={source.webhook_url ?? "Gerada ao salvar a fonte"} />
+        <InfoBlock title="URL única" value={source.webhook_url || "Disponível após salvar a fonte"} />
         <InfoBlock title="Token/API key" value={source.api_key} />
         <InfoBlock title="Endpoint API pública" value="POST /public/leads" />
         <InfoBlock title="Script embed" value={embed} />
@@ -1164,7 +1164,7 @@ function AutomationsView() {
   return (
     <section className="panel p-6">
       <h2 className="section-title">Automações</h2>
-      <p className="section-copy">Regras planejadas para evoluir a operação sem mudar o fluxo principal agora.</p>
+      <p className="section-copy">Regras preparadas para a próxima fase. O MVP atual opera com campanha, IA e handoff humano.</p>
       <div className="mt-6 grid gap-3 md:grid-cols-2">
         {rules.map((rule) => (
           <div key={rule} className="flex items-center justify-between gap-4 rounded-xl border border-line bg-wash p-4">
@@ -1172,7 +1172,7 @@ function AutomationsView() {
               <CheckCircle2 className="text-muted" size={18} />
               <span className="text-sm font-medium text-ink">{rule}</span>
             </div>
-            <span className="status-badge text-muted">Em breve</span>
+            <span className="status-badge text-muted">Planejado</span>
           </div>
         ))}
       </div>
@@ -1196,7 +1196,7 @@ function PlaceholderView({ title }: { title: string }) {
   return (
     <section className="panel p-6">
       <h2 className="section-title">{title}</h2>
-      <p className="section-copy">Módulo reservado para a próxima fase do ThM ConnectX.</p>
+      <p className="section-copy">Esta área ainda não faz parte do fluxo operacional do MVP.</p>
     </section>
   );
 }

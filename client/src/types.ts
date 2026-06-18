@@ -142,7 +142,6 @@ export type SetupStatus = {
   template_approved: boolean;
   worker_running: boolean;
   inbound_worker_running: boolean;
-  demo_mode: boolean;
 };
 
 export type SystemCheck = {

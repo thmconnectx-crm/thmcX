@@ -1,16 +1,16 @@
 # ThM ConnectX
 
-MVP de CRM para captacao de leads, prospeccao ativa controlada, WhatsApp Cloud API oficial, IA de pre-atendimento e handoff humano.
+MVP de CRM para captação de leads, prospecção ativa controlada, WhatsApp Cloud API oficial, IA de pré-atendimento e handoff humano.
 
-## Principios de compliance
+## Princípios de compliance
 
-- Nao usa WhatsApp Web nao oficial.
-- Nao tenta burlar limites, bloqueios, chips ou politicas da Meta.
-- Nao envia para `opt_out=true`.
-- Campanhas so enviam para `opt_in_status=authorized`.
+- Não usa WhatsApp Web não oficial.
+- Não tenta burlar limites, bloqueios, chips ou políticas da Meta.
+- Não envia para `opt_out=true`.
+- Campanhas só enviam para `opt_in_status=authorized`.
 - Primeira abordagem usa template oficial aprovado do WhatsApp Cloud API.
-- Mantem historico completo, logs de envio e opt-out automatico.
-- Respeita janela de horario, limite diario e tentativa maxima de reenvio.
+- Mantém histórico completo, logs de envio e opt-out automático.
+- Respeita janela de horário, limite diário e tentativa máxima de reenvio.
 
 ## Stack
 
@@ -58,14 +58,14 @@ Configure no painel Meta:
 O projeto tem dois modos de deploy:
 
 - `render.yaml`: modo Free/manual para validar oferta, templates, leads e envio controlado sem Redis/worker.
-- `render.worker.yaml`: modo Starter/worker para disparos em fila com Redis e BullMQ quando a validacao comercial estiver pronta.
+- `render.worker.yaml`: modo Starter/worker para disparos em fila com Redis e BullMQ quando a validação comercial estiver pronta.
 
-No modo manual, campanhas ficam ativas, mas o envio e acionado pelo botao `Enviar proximo` no painel. Webhooks recebidos sao processados pela propria API.
+No modo manual, campanhas ficam ativas, mas o envio é acionado pelo botão `Enviar próximo` no painel. Webhooks recebidos são processados pela própria API.
 
-Backend e workers podem rodar em Render/Railway usando o mesmo codigo:
+Backend e workers podem rodar em Render/Railway usando o mesmo código:
 
 - API: `npm run start -w server`
 - Worker: `npm run worker -w server`
 - Worker inbound: `npm run inbound-worker`
 
-Configure Supabase e variaveis de ambiente nos services. Redis so e obrigatorio ao usar `render.worker.yaml`. Veja `docs/DEPLOY.md`.
+Configure Supabase e variáveis de ambiente nos services. Redis só é obrigatório ao usar `render.worker.yaml`. Veja `docs/DEPLOY.md`.

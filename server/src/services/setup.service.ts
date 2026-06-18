@@ -73,7 +73,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     key: "demo_mode",
     label: "Dados reais ativos",
     status: "connected",
-    message: "O painel esta usando a API e o banco configurados no ambiente."
+    message: "O painel está usando a API e o banco configurados no ambiente."
   });
 
   const checks = [
@@ -137,7 +137,7 @@ async function runCheckByKey(tenantId: string, key: string): Promise<SystemCheck
         key: "demo_mode",
         label: "Dados reais ativos",
         status: "connected",
-        message: "O painel esta usando a API e o banco configurados no ambiente."
+        message: "O painel está usando a API e o banco configurados no ambiente."
       }),
     templates_available: () => checkApprovedTemplate(tenantId),
     template_approved: () => checkApprovedTemplate(tenantId)
@@ -156,13 +156,13 @@ async function checkSupabase(): Promise<SystemCheck> {
     if (error) throw error;
     return connected("supabase_connected", "Supabase conectado", "Banco respondeu com sucesso.");
   } catch (error) {
-    return failed("supabase_connected", "Supabase conectado", "Nao foi possivel consultar o Supabase.", error);
+    return failed("supabase_connected", "Supabase conectado", "Não foi possível consultar o Supabase.", error);
   }
 }
 
 async function checkRedis(): Promise<SystemCheck> {
   if (env.QUEUE_MODE === "manual") {
-    return connected("redis_connected", "Redis conectado", "Modo manual ativo: Redis nao e necessario nesta validacao.");
+    return connected("redis_connected", "Redis conectado", "Modo manual ativo: Redis não é necessário nesta validação.");
   }
   if (!env.REDIS_URL) return pending("redis_connected", "Redis conectado", "Configure REDIS_URL no ambiente da API e do worker.");
 
@@ -184,7 +184,7 @@ async function checkRedis(): Promise<SystemCheck> {
     await redis.ping();
     return connected("redis_connected", "Redis conectado", "Redis respondeu ao PING.");
   } catch (error) {
-    return failed("redis_connected", "Redis conectado", "Nao foi possivel conectar no Redis.", error);
+    return failed("redis_connected", "Redis conectado", "Não foi possível conectar no Redis.", error);
   } finally {
     redis?.disconnect();
   }
@@ -196,9 +196,9 @@ async function checkOpenAI(): Promise<SystemCheck> {
   try {
     const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
     await client.models.retrieve(env.OPENAI_MODEL);
-    return connected("openai_connected", "OpenAI conectada", `Modelo ${env.OPENAI_MODEL} acessivel.`);
+    return connected("openai_connected", "OpenAI conectada", `Modelo ${env.OPENAI_MODEL} acessível.`);
   } catch (error) {
-    return failed("openai_connected", "OpenAI conectada", "Nao foi possivel validar a OpenAI.", error);
+    return failed("openai_connected", "OpenAI conectada", "Não foi possível validar a OpenAI.", error);
   }
 }
 
@@ -214,14 +214,14 @@ async function checkWhatsAppCloud(): Promise<SystemCheck> {
       headers: { Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}` }
     });
     const payload = (await response.json()) as { error?: { message?: string }; display_phone_number?: string };
-    if (!response.ok) throw new Error(payload.error?.message ?? "WhatsApp Cloud API recusou a conexao.");
+    if (!response.ok) throw new Error(payload.error?.message ?? "WhatsApp Cloud API recusou a conexão.");
     return connected(
       "whatsapp_cloud_connected",
       "WhatsApp Cloud API conectada",
-      payload.display_phone_number ? `Numero ${payload.display_phone_number} acessivel.` : "Phone Number ID acessivel pela Graph API."
+      payload.display_phone_number ? `Número ${payload.display_phone_number} acessível.` : "Phone Number ID acessível pela Graph API."
     );
   } catch (error) {
-    return failed("whatsapp_cloud_connected", "WhatsApp Cloud API conectada", "Nao foi possivel validar a Graph API.", error);
+    return failed("whatsapp_cloud_connected", "WhatsApp Cloud API conectada", "Não foi possível validar a Graph API.", error);
   }
 }
 
@@ -248,7 +248,7 @@ function checkBusinessAccountId(): SystemCheck {
 async function checkApprovedTemplate(tenantId: string): Promise<SystemCheck> {
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]);
   if (missing.length) {
-    return pending("templates_available", "Templates WhatsApp disponiveis", `Configure ${missing.join(", ")} antes de consultar templates.`);
+    return pending("templates_available", "Templates WhatsApp disponíveis", `Configure ${missing.join(", ")} antes de consultar templates.`);
   }
 
   const { count, error } = await supabase
@@ -256,12 +256,12 @@ async function checkApprovedTemplate(tenantId: string): Promise<SystemCheck> {
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId)
     .eq("status", "approved");
-  if (error) return failed("templates_available", "Templates WhatsApp disponiveis", "Nao foi possivel consultar templates.", error);
+  if (error) return failed("templates_available", "Templates WhatsApp disponíveis", "Não foi possível consultar templates.", error);
   return makeCheck({
     key: "templates_available",
-    label: "Templates WhatsApp disponiveis",
+    label: "Templates WhatsApp disponíveis",
     status: (count ?? 0) > 0 ? "connected" : "pending",
-    message: (count ?? 0) > 0 ? "Ha pelo menos um template aprovado cadastrado." : "Cadastre um template com status approved."
+    message: (count ?? 0) > 0 ? "Há pelo menos um template aprovado cadastrado." : "Cadastre um template com status approved."
   });
 }
 
@@ -272,7 +272,7 @@ async function checkWebhookVerified(): Promise<SystemCheck> {
   }
 
   const result = await supabase.from("settings").select("value").eq("key", "whatsapp_webhook_verified").maybeSingle();
-  if (result.error) return failed("webhook_verified", "Webhook WhatsApp verificado", "Nao foi possivel consultar o status do webhook.", result.error);
+  if (result.error) return failed("webhook_verified", "Webhook WhatsApp verificado", "Não foi possível consultar o status do webhook.", result.error);
 
   const verified = Boolean((result.data?.value as { verified?: boolean } | null)?.verified);
   return makeCheck({
@@ -285,7 +285,7 @@ async function checkWebhookVerified(): Promise<SystemCheck> {
 
 async function checkWorkerHeartbeat(): Promise<SystemCheck> {
   if (env.QUEUE_MODE === "manual") {
-    return connected("worker_running", "Worker de disparos rodando", "Modo manual/free ativo: disparos sao acionados pelo painel.");
+    return connected("worker_running", "Worker de disparos rodando", "Modo manual/free ativo: disparos são acionados pelo painel.");
   }
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "REDIS_URL"]);
   if (missing.length) {
@@ -293,7 +293,7 @@ async function checkWorkerHeartbeat(): Promise<SystemCheck> {
   }
 
   const result = await supabase.from("settings").select("value").eq("key", "worker_heartbeat").maybeSingle();
-  if (result.error) return failed("worker_running", "Worker de disparos rodando", "Nao foi possivel consultar heartbeat do worker.", result.error);
+  if (result.error) return failed("worker_running", "Worker de disparos rodando", "Não foi possível consultar heartbeat do worker.", result.error);
 
   const heartbeat = result.data?.value as { updated_at?: string } | null;
   if (!heartbeat?.updated_at) {
@@ -310,7 +310,7 @@ async function checkWorkerHeartbeat(): Promise<SystemCheck> {
     key: "worker_running",
     label: "Worker de disparos rodando",
     status: ageMs <= 120000 ? "connected" : "error",
-    message: ageMs <= 120000 ? "Worker enviou heartbeat recentemente." : "Heartbeat do worker esta antigo; verifique o processo.",
+    message: ageMs <= 120000 ? "Worker enviou heartbeat recentemente." : "Heartbeat do worker está antigo; verifique o processo.",
     error_message: ageMs <= 120000 ? undefined : "Inicie o worker com npm run worker e confirme o acesso ao Redis/Supabase."
   });
 }
@@ -320,7 +320,7 @@ async function checkInboundWorkerHeartbeat(): Promise<SystemCheck> {
     return connected(
       "inbound_worker_running",
       "Worker de mensagens recebidas rodando",
-      "Modo manual/free ativo: webhooks recebidos sao processados pela propria API."
+      "Modo manual/free ativo: webhooks recebidos são processados pela própria API."
     );
   }
   const missing = missingEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "REDIS_URL"]);
@@ -337,7 +337,7 @@ async function checkInboundWorkerHeartbeat(): Promise<SystemCheck> {
     return failed(
       "inbound_worker_running",
       "Worker de mensagens recebidas rodando",
-      "Nao foi possivel consultar heartbeat do worker inbound.",
+      "Não foi possível consultar heartbeat do worker inbound.",
       result.error
     );
   }
@@ -360,7 +360,7 @@ async function checkInboundWorkerHeartbeat(): Promise<SystemCheck> {
     message:
       ageMs <= 120000
         ? "Worker inbound enviou heartbeat recentemente."
-        : "Heartbeat do worker inbound esta antigo; verifique o processo.",
+        : "Heartbeat do worker inbound está antigo; verifique o processo.",
     error_message: ageMs <= 120000 ? undefined : "Inicie o worker inbound com npm run inbound-worker e confirme Redis/Supabase."
   });
 }

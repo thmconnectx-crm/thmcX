@@ -189,7 +189,7 @@ export async function testLeadSource(tenantId: string, id: string) {
   return {
     success: true,
     source_id: source.id,
-    message: "Conexao pronta para receber leads"
+    message: "Conexão pronta para receber leads"
   };
 }
 
@@ -383,7 +383,7 @@ async function maybeSendFirstMessage(
   if (!settings.send_first_message || settings.block_auto_send || lead.opt_out) return;
   const template =
     stringSetting(settings, "first_message_body") ??
-    "Ola, [nome]. Tudo bem?\n\nRecebi seu cadastro sobre captacao de clientes pela internet.\n\nPara eu entender melhor: hoje voce ja anuncia no Google, Instagram ou Facebook?";
+    "Olá, [nome]. Tudo bem?\n\nRecebi seu cadastro sobre captação de clientes pela internet.\n\nPara eu entender melhor: hoje você já anuncia no Google, Instagram ou Facebook?";
   const body = template.replace("[nome]", lead.name ?? "tudo bem");
   const sent = await sendWhatsAppText(lead.phone, body);
   const message = assertDb(
@@ -480,7 +480,7 @@ function normalizePhone(value: string) {
 }
 
 function validatePhone(phone: string) {
-  if (!/^\d{10,15}$/.test(phone)) throw new Error("Telefone invalido");
+  if (!/^\d{10,15}$/.test(phone)) throw new Error("Telefone inválido");
 }
 
 function toRecord(payload: unknown): Record<string, unknown> {

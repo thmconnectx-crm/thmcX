@@ -33,7 +33,7 @@ export async function sendWhatsAppText(to: string, body: string): Promise<WhatsA
   }
 
   const id = payload.messages?.[0]?.id;
-  if (!id) throw new Error("WhatsApp nao retornou id da mensagem");
+  if (!id) throw new Error("WhatsApp não retornou id da mensagem");
   return { id };
 }
 
@@ -85,6 +85,6 @@ export async function sendWhatsAppTemplate(
   }
 
   const id = payload.messages?.[0]?.id;
-  if (!id) throw new Error("WhatsApp nao retornou id da mensagem");
+  if (!id) throw new Error("WhatsApp não retornou id da mensagem");
   return { id };
 }

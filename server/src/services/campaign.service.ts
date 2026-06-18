@@ -146,7 +146,7 @@ export async function startCampaign(tenantId: string, id: string) {
       mode: "manual",
       queued: 0,
       pending: pending.length,
-      message: "Modo manual ativo. Use Enviar proximo para processar um lead por vez."
+      message: "Modo manual ativo. Use Enviar próximo para processar um lead por vez."
     };
   }
 
@@ -198,7 +198,7 @@ export async function processNextCampaignLead(tenantId: string, id: string) {
       .maybeSingle()
   ) as { id: string; lead_id: string; attempts: number; status: string } | null;
 
-  if (!next) return { sent: false, message: "Nao ha leads pendentes nesta campanha." };
+  if (!next) return { sent: false, message: "Não ha leads pendentes nesta campanha." };
 
   const lead = assertDb(await supabase.from("leads").select("*").eq("id", next.lead_id).eq("tenant_id", tenantId).single()) as {
     id: string;
@@ -221,9 +221,9 @@ export async function processNextCampaignLead(tenantId: string, id: string) {
       campaign_id: id,
       lead_id: lead.id,
       status: "blocked_no_opt_in",
-      error: "Lead sem autorizacao opt-in"
+      error: "Lead sem autorização opt-in"
     });
-    return { skipped: "no_opt_in", message: "Lead sem autorizacao opt-in." };
+    return { skipped: "no_opt_in", message: "Lead sem autorização opt-in." };
   }
 
   if (next.attempts > 1) {

@@ -86,7 +86,7 @@ export async function refreshToken(refreshToken: string) {
     .eq("token_hash", tokenHash)
     .maybeSingle();
   if (result.error) throw new Error(result.error.message);
-  if (!result.data) throw new HttpError(401, "Refresh token invalido");
+  if (!result.data) throw new HttpError(401, "Refresh token inválido");
 
   const session = result.data as { expires_at: string; users: UserRow | null };
   if (!session.users || new Date(session.expires_at).getTime() < Date.now()) {

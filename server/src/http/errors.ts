@@ -12,7 +12,7 @@ export class HttpError extends Error {
 }
 
 export function notFound(_req: Request, _res: Response, next: NextFunction) {
-  next(new HttpError(404, "Rota nao encontrada"));
+  next(new HttpError(404, "Rota não encontrada"));
 }
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
@@ -21,7 +21,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   }
 
   if (err instanceof ZodError) {
-    return res.status(400).json({ error: "Dados invalidos", details: err.flatten() });
+    return res.status(400).json({ error: "Dados inválidos", details: err.flatten() });
   }
 
   if (err instanceof HttpError) {

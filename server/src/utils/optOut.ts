@@ -3,7 +3,7 @@ const optOutPatterns = [
   "sair",
   "remover",
   "cancelar",
-  "nao quero",
+  "não quero",
   "não quero",
   "sem interesse"
 ];
@@ -17,7 +17,7 @@ export function detectsNegative(text: string) {
   const normalized = text.trim().toLowerCase();
   return (
     detectsOptOut(text) ||
-    ["nao tenho interesse", "não tenho interesse", "agora nao", "agora não"].some((pattern) =>
+    ["não tenho interesse", "não tenho interesse", "agora não", "agora não"].some((pattern) =>
       normalized.includes(pattern)
     )
   );

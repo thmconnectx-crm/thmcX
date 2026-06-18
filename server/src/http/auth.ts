@@ -34,7 +34,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
     const tenantId = payload.tenantId ?? payload.tenant_id;
     const role = payload.role;
     if (!userId || !tenantId || (role !== "admin" && role !== "agent")) {
-      return next(new HttpError(401, "Token invalido"));
+      return next(new HttpError(401, "Token inválido"));
     }
     req.user = {
       ...payload,
@@ -45,7 +45,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
     };
     return next();
   } catch {
-    return next(new HttpError(401, "Token invalido"));
+    return next(new HttpError(401, "Token inválido"));
   }
 }
 

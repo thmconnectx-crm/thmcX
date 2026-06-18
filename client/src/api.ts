@@ -19,8 +19,8 @@ export async function request<T>(path: string, options: RequestInit = {}, retryO
     clearSessionAndRedirect();
   }
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({ error: "Erro na requisicao" }));
-    throw new Error(payload.error ?? "Erro na requisicao");
+    const payload = await response.json().catch(() => ({ error: "Erro na requisição" }));
+    throw new Error(payload.error ?? "Erro na requisição");
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

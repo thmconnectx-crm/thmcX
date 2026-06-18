@@ -10,7 +10,7 @@ Para um projeto novo, abra o SQL Editor do Supabase e rode:
 -- cole o conteudo de server/supabase/schema.sql
 ```
 
-Para um banco que ja recebeu uma versao anterior, rode as migrations nesta ordem:
+Para um banco que já recebeu uma versão anterior, rode as migrations nesta ordem:
 
 1. `server/supabase/2026-06-15-connectx-integrations.sql`
 2. `server/supabase/2026-06-16-refresh-tokens.sql`
@@ -31,7 +31,7 @@ having count(*) > 1;
 
 ## 2. Escolha o modo de deploy
 
-### Modo Free/manual para validacao
+### Modo Free/manual para validação
 
 Use `render.yaml`.
 
@@ -43,11 +43,11 @@ Ele cria somente:
 Neste modo:
 
 - `QUEUE_MODE=manual`.
-- Redis nao e obrigatorio.
-- Workers nao rodam.
-- Campanhas nao disparam em background.
-- Use o botao `Enviar proximo` na campanha para enviar um lead por vez.
-- Webhooks recebidos sao processados pela propria API.
+- Redis não e obrigatorio.
+- Workers não rodam.
+- Campanhas não disparam em background.
+- Use o botão `Enviar próximo` na campanha para enviar um lead por vez.
+- Webhooks recebidos são processados pela própria API.
 
 ### Modo Starter/worker para escala
 
@@ -69,7 +69,7 @@ Use o arquivo `render.yaml` na raiz do projeto como blueprint para o modo Free/m
 - `thm-connectx-api`: API Express.
 - `thm-connectx-panel`: painel React estatico.
 
-Quando for migrar para o plano Starter, use `render.worker.yaml`. Ele cria tambem:
+Quando for migrar para o plano Starter, use `render.worker.yaml`. Ele cria também:
 
 - `thm-connectx-worker`: worker de disparos.
 - `thm-connectx-inbound-worker`: worker de mensagens recebidas.
@@ -104,7 +104,7 @@ Build: npm install && npm run build -w client
 Publish directory: client/dist
 ```
 
-## 4. Variaveis
+## 4. Variáveis
 
 Na API:
 
@@ -141,7 +141,7 @@ Os workers precisam de Supabase, Redis e as credenciais usadas para WhatsApp/Ope
 
 - Status do Sistema sem pendencias criticas.
 - Supabase conectado.
-- Redis conectado, apenas no modo worker. No modo manual, o painel mostrara que Redis nao e necessario.
+- Redis conectado, apenas no modo worker. No modo manual, o painel mostrará que Redis não é necessário.
 - OpenAI conectada.
 - WhatsApp Cloud API conectada.
 - Phone Number ID e WABA ID configurados.
@@ -155,8 +155,8 @@ Os workers precisam de Supabase, Redis e as credenciais usadas para WhatsApp/Ope
 
 1. Cadastre um template aprovado no painel.
 2. Cadastre um lead com opt-in autorizado.
-3. Crie uma campanha com limite diario baixo.
-4. Inicie a campanha para um unico numero.
-5. No modo Free/manual, clique em `Enviar proximo`.
+3. Crie uma campanha com limite diário baixo.
+4. Inicie a campanha para um único numero.
+5. No modo Free/manual, clique em `Enviar próximo`.
 6. Responda pelo WhatsApp.
 7. Confirme a conversa no painel e o handoff para humano.

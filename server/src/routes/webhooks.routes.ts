@@ -71,7 +71,7 @@ router.post(
 
 function isValidMetaSignature(req: Request) {
   if (!env.WHATSAPP_APP_SECRET) {
-    console.warn("WHATSAPP_APP_SECRET nao configurado; assinatura do webhook Meta nao sera validada.");
+    console.warn("WHATSAPP_APP_SECRET não configurado; assinatura do webhook Meta não será validada.");
     return env.NODE_ENV !== "production";
   }
 

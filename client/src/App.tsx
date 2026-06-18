@@ -60,10 +60,10 @@ const menu: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "campaigns", label: "Campanhas", icon: Megaphone },
   { id: "conversations", label: "Conversas", icon: MessageSquare },
   { id: "sends", label: "Disparos", icon: Send },
-  { id: "connections", label: "Conexoes", icon: PlugZap },
+  { id: "connections", label: "Conexões", icon: PlugZap },
   { id: "templates", label: "Templates WhatsApp", icon: ClipboardList },
-  { id: "automations", label: "Automacoes", icon: Bot },
-  { id: "reports", label: "Relatorios", icon: Activity },
+  { id: "automations", label: "Automações", icon: Bot },
+  { id: "reports", label: "Relatórios", icon: Activity },
   { id: "settings", label: "Status do Sistema", icon: Settings }
 ];
 
@@ -71,40 +71,40 @@ const primaryMenu = menu.filter((item) => item.id !== "settings");
 const footerMenu = menu.filter((item) => item.id === "settings");
 
 const tabDescriptions: Record<Tab, string> = {
-  dashboard: "Acompanhe a operacao e veja o proximo passo recomendado.",
-  leads: "Gerencie contatos, origens e informacoes comerciais em um so lugar.",
+  dashboard: "Acompanhe a operação e veja o próximo passo recomendado.",
+  leads: "Gerencie contatos, origens e informações comerciais em um só lugar.",
   campaigns: "Crie campanhas controladas com templates oficiais e opt-in autorizado.",
   conversations: "Acompanhe atendimentos, IA e passagem para humano.",
   sends: "Monitore a fila de disparos e os registros de envio.",
-  connections: "Gerencie as fontes de entrada de leads e integracoes do seu atendimento.",
+  connections: "Gerencie as fontes de entrada de leads e integrações do seu atendimento.",
   templates: "Cadastre templates aprovados para campanhas via WhatsApp Cloud API.",
   automations: "Configure fluxos de triagem, tags e handoff por origem.",
   reports: "Analise desempenho por origem, campanha e atendimento.",
-  settings: "Valide conexoes, credenciais e saude operacional do sistema."
+  settings: "Valide conexões, credenciais e saúde operacional do sistema."
 };
 
 const connectionSections = [
   "Webhooks",
-  "Formularios",
+  "Formulários",
   "Meta Ads",
   "Google Ads",
   "Google Sheets",
   "Landing Pages",
-  "Integracoes via Zapier/Make",
+  "Integrações via Zapier/Make",
   "API externa",
   "Campos personalizados",
-  "Regras de distribuicao"
+  "Regras de distribuição"
 ];
 
 const connectionCards = [
   { title: "Webhook de entrada", type: "webhook", icon: Webhook },
-  { title: "Formulario proprio", type: "landing_page", icon: FormInput },
+  { title: "Formulário próprio", type: "landing_page", icon: FormInput },
   { title: "Meta Lead Ads", type: "meta_ads", icon: Megaphone },
-  { title: "Google Ads / Conversoes", type: "google_ads", icon: Activity },
+  { title: "Google Ads / Conversões", type: "google_ads", icon: Activity },
   { title: "Google Sheets", type: "google_sheets", icon: FileSpreadsheet },
   { title: "Landing Pages", type: "landing_page", icon: Link2 },
   { title: "Zapier / Make", type: "zapier", icon: PlugZap },
-  { title: "API publica", type: "api", icon: ClipboardList }
+  { title: "API pública", type: "api", icon: ClipboardList }
 ];
 
 export function App() {
@@ -154,7 +154,7 @@ export function App() {
                 onClick={() => setTab(item.id)}
               >
                 <Icon size={17} />
-                Configuracoes
+                Configurações
               </button>
             );
           })}
@@ -207,7 +207,7 @@ export function App() {
           {tab === "reports" && <ReportsView />}
           {tab === "settings" && <SettingsView />}
           {!["dashboard", "leads", "campaigns", "conversations", "sends", "connections", "templates", "automations", "reports", "settings"].includes(tab) && (
-            <PlaceholderView title={menu.find((item) => item.id === tab)?.label ?? "Modulo"} />
+            <PlaceholderView title={menu.find((item) => item.id === tab)?.label ?? "Módulo"} />
           )}
         </main>
       </div>
@@ -247,7 +247,7 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
     <main className="grid min-h-screen place-items-center bg-wash px-4">
       <form className="panel w-full max-w-md p-7" onSubmit={submit}>
         <Logo variant="login" />
-        <p className="mt-2 text-sm leading-6 text-muted">CRM de captacao, WhatsApp e atendimento</p>
+        <p className="mt-2 text-sm leading-6 text-muted">CRM de captação, WhatsApp e atendimento</p>
         <div className="mt-6 grid grid-cols-2 rounded-lg border border-line bg-wash p-1">
           <button
             type="button"
@@ -301,7 +301,7 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
         </button>
         {mode === "register" && (
           <p className="mt-4 text-xs leading-5 text-muted">
-            A conta criada sera o administrador do tenant. Os dados de leads, campanhas e conversas ficarao isolados por empresa.
+            A conta criada será o administrador do tenant. Os dados de leads, campanhas e conversas ficarão isolados por empresa.
           </p>
         )}
       </form>
@@ -345,7 +345,7 @@ function DashboardView() {
       <div className="panel p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-ink">Proximo passo recomendado</p>
+            <p className="text-sm font-medium text-ink">Próximo passo recomendado</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{nextStep.title}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted">{nextStep.description}</p>
           </div>
@@ -406,7 +406,7 @@ function LeadsView() {
       <div className="space-y-6">
         <form className="panel p-6" onSubmit={create}>
           <h2 className="section-title">Novo lead</h2>
-          <p className="section-copy">Cadastre manualmente apenas leads com origem conhecida e permissao registrada.</p>
+          <p className="section-copy">Cadastre manualmente apenas leads com origem conhecida e permissão registrada.</p>
           <div className="mt-5 space-y-4">
             {(["name", "phone", "email", "company", "city", "niche", "tags"] as const).map((key) => (
               <Field key={key} label={labelFor(key)}>
@@ -419,7 +419,7 @@ function LeadsView() {
 
         <div className="panel p-6">
           <h2 className="section-title">Importar CSV</h2>
-          <p className="section-copy">Use CSV para carregar uma base autorizada e rastreavel.</p>
+          <p className="section-copy">Use CSV para carregar uma base autorizada e rastreável.</p>
           <div className="mt-5">
             <Field label="Arquivo CSV">
               <input className="input" type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
@@ -434,7 +434,7 @@ function LeadsView() {
 
       <div className="panel overflow-x-auto">
         {leads.length === 0 ? (
-          <EmptyState title="Nenhum lead recebido ainda." text="Importe um CSV ou configure uma fonte em Conexoes para preencher esta lista." />
+          <EmptyState title="Nenhum lead recebido ainda." text="Importe um CSV ou configure uma fonte em Conexões para preencher esta lista." />
         ) : (
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-wash text-xs uppercase tracking-wide text-muted">
@@ -500,7 +500,7 @@ function ConnectionsView() {
           send_first_message: form.send_first_message,
           auto_ai_enabled: form.auto_ai_enabled,
           first_message_body:
-            "Ola, [nome]. Tudo bem?\n\nRecebi seu cadastro sobre captacao de clientes pela internet.\n\nPara eu entender melhor: hoje voce ja anuncia no Google, Instagram ou Facebook?"
+            "Olá, [nome]. Tudo bem?\n\nRecebi seu cadastro sobre captação de clientes pela internet.\n\nPara eu entender melhor: hoje você já anuncia no Google, Instagram ou Facebook?"
         }
       })
     });
@@ -554,7 +554,7 @@ function ConnectionsView() {
               <Field label="Nome da fonte">
                 <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </Field>
-              <Field label="Tipo de conexao">
+              <Field label="Tipo de conexão">
                 <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   {["webhook", "landing_page", "meta_ads", "google_ads", "google_sheets", "zapier", "make", "api"].map((type) => (
                     <option key={type} value={type}>
@@ -563,7 +563,7 @@ function ConnectionsView() {
                   ))}
                 </select>
               </Field>
-              <Field label="Tag automatica">
+              <Field label="Tag automática">
                 <input className="input" value={form.auto_tag} onChange={(e) => setForm({ ...form, auto_tag: e.target.value })} />
               </Field>
               <Field label="Status inicial">
@@ -575,7 +575,7 @@ function ConnectionsView() {
                   checked={form.send_first_message}
                   onChange={(e) => setForm({ ...form, send_first_message: e.target.checked })}
                 />
-                Enviar primeira mensagem automatica
+                Enviar primeira mensagem automática
               </label>
               <label className="flex items-center gap-3 rounded-lg border border-line bg-wash px-3 py-3 text-sm text-muted">
                 <input
@@ -590,8 +590,8 @@ function ConnectionsView() {
           </form>
 
           <div className="panel p-6">
-            <h2 className="section-title">Secoes do modulo</h2>
-            <p className="section-copy">Estrutura preparada para captacao, distribuicao e automacoes por origem.</p>
+            <h2 className="section-title">Seções do módulo</h2>
+            <p className="section-copy">Estrutura preparada para captação, distribuição e automações por origem.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {connectionSections.map((section) => (
                 <span key={section} className="status-badge text-muted">
@@ -606,8 +606,8 @@ function ConnectionsView() {
           <div>
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
-                <h2 className="section-title">Fontes conectaveis</h2>
-                <p className="section-copy">Configure entradas reais ou deixe integracoes preparadas para a proxima fase.</p>
+                <h2 className="section-title">Fontes conectáveis</h2>
+                <p className="section-copy">Configure entradas reais ou deixe integrações preparadas para a próxima fase.</p>
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
@@ -631,7 +631,7 @@ function ConnectionsView() {
                   <p className="mt-3 text-sm text-muted">{connectionHelpText(statusLabel)}</p>
                   <dl className="mt-5 space-y-3 text-sm">
                     <div className="flex justify-between gap-3">
-                      <dt className="text-muted">Ultima sync</dt>
+                      <dt className="text-muted">Última sync</dt>
                       <dd>{source?.last_sync_at ? formatDate(source.last_sync_at) : "Sem sync"}</dd>
                     </div>
                     <div className="flex justify-between gap-3">
@@ -647,7 +647,7 @@ function ConnectionsView() {
                     <button className="btn-secondary flex-1" onClick={() => setSelected(source ?? null)}>
                       Configurar
                     </button>
-                    <button className="btn-ghost" onClick={() => source && testSource(source)} title="Testar conexao">
+                    <button className="btn-ghost" onClick={() => source && testSource(source)} title="Testar conexão">
                       <RefreshCw size={15} />
                     </button>
                   </div>
@@ -695,7 +695,7 @@ function TemplatesView() {
     <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
       <form className="panel p-6" onSubmit={create}>
         <h2 className="section-title">Template WhatsApp</h2>
-        <p className="section-copy">Campanhas reais usam templates aprovados no WhatsApp Manager, nao texto livre.</p>
+        <p className="section-copy">Campanhas reais usam templates aprovados no WhatsApp Manager, não texto livre.</p>
         <div className="mt-5 grid gap-4">
           <Field label="Nome interno">
             <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -721,7 +721,7 @@ function TemplatesView() {
           <Field label="Preview interno do corpo">
             <textarea className="input min-h-28 py-2" value={form.body_preview} onChange={(e) => setForm({ ...form, body_preview: e.target.value })} />
           </Field>
-          <Field label="Variaveis separadas por virgula">
+          <Field label="Variáveis separadas por vírgula">
             <input className="input" value={form.variables} onChange={(e) => setForm({ ...form, variables: e.target.value })} />
           </Field>
         </div>
@@ -742,7 +742,7 @@ function TemplatesView() {
               <StatusPill status={template.status} />
             </div>
             <p className="mt-3 whitespace-pre-wrap text-sm">{template.body_preview}</p>
-            <p className="mt-3 text-xs text-muted">Variaveis: {template.variables?.join(", ") || "sem variaveis"}</p>
+            <p className="mt-3 text-xs text-muted">Variáveis: {template.variables?.join(", ") || "sem variáveis"}</p>
           </div>
         ))}
       </div>
@@ -777,7 +777,7 @@ function SettingsView() {
   return (
     <section className="space-y-6">
       <div className="panel p-5 text-sm text-ink">
-        Dados reais ativos. Esta tela consulta a API e os servicos configurados no ambiente.
+        Dados reais ativos. Esta tela consulta a API e os serviços configurados no ambiente.
       </div>
 
       <div className="panel p-6">
@@ -806,7 +806,7 @@ function SettingsView() {
               {item.error_message && (
                 <p className="mt-3 rounded-lg border border-divider bg-white p-3 text-xs leading-5 text-ink">{item.error_message}</p>
               )}
-              <p className="mt-3 text-xs text-tertiary">Ultima verificacao: {formatDateTime(item.last_checked_at)}</p>
+              <p className="mt-3 text-xs text-tertiary">Última verificação: {formatDateTime(item.last_checked_at)}</p>
               <button className="btn-secondary mt-4 w-full" onClick={() => testCheck(item.key)} disabled={testingKey === item.key}>
                 <RefreshCw size={15} />
                 {testingKey === item.key ? "Testando" : "Testar"}
@@ -848,16 +848,16 @@ function ConnectionConfig({ source }: { source?: LeadSource }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="section-title">{source.name}</h2>
-          <p className="section-copy">Configuracao operacional da fonte.</p>
+          <p className="section-copy">Configuração operacional da fonte.</p>
         </div>
         <button className="btn-secondary" onClick={() => navigator.clipboard?.writeText(source.webhook_url ?? "")}>
           Copiar URL
         </button>
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <InfoBlock title="URL unica" value={source.webhook_url ?? "Gerada ao salvar a fonte"} />
+        <InfoBlock title="URL única" value={source.webhook_url ?? "Gerada ao salvar a fonte"} />
         <InfoBlock title="Token/API key" value={source.api_key} />
-        <InfoBlock title="Endpoint API publica" value="POST /public/leads" />
+        <InfoBlock title="Endpoint API pública" value="POST /public/leads" />
         <InfoBlock title="Script embed" value={embed} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -954,7 +954,7 @@ function CampaignsView() {
                 ))}
             </select>
           </Field>
-          <Field label="Variaveis do template">
+          <Field label="Variáveis do template">
             <input className="input" value={form.template_variables} onChange={(e) => setForm({ ...form, template_variables: e.target.value })} />
           </Field>
           <Field label="Preview interno da mensagem">
@@ -982,7 +982,7 @@ function CampaignsView() {
               <div>
                 <h3 className="section-title">{campaign.name}</h3>
                 <p className="text-sm text-muted">
-                  {campaign.status} - template {campaign.template_name ?? "nao definido"} - limite {campaign.daily_limit}/dia
+                  {campaign.status} - template {campaign.template_name ?? "não definido"} - limite {campaign.daily_limit}/dia
                 </p>
               </div>
               <div className="flex gap-2">
@@ -991,7 +991,7 @@ function CampaignsView() {
                   Iniciar
                 </button>
                 <button className="btn-secondary" onClick={() => action(campaign.id, "process-next")}>
-                  Enviar proximo
+                  Enviar próximo
                 </button>
                 <button className="btn-secondary" onClick={() => action(campaign.id, "pause")}>
                   <Pause size={16} />
@@ -1034,7 +1034,7 @@ function ConversationsView() {
     <section className="grid min-h-[650px] gap-6 xl:grid-cols-[340px_1fr]">
       <aside className="panel overflow-hidden">
         {conversations.length === 0 && (
-          <p className="p-6 text-sm leading-6 text-muted">Nenhuma conversa ainda. Quando um lead responder ou uma automacao iniciar atendimento, ela aparece aqui.</p>
+          <p className="p-6 text-sm leading-6 text-muted">Nenhuma conversa ainda. Quando um lead responder ou uma automação iniciar atendimento, ela aparece aqui.</p>
         )}
         {conversations.map((conversation) => (
           <button
@@ -1128,7 +1128,7 @@ function SendsView() {
       <div className="panel overflow-x-auto">
         <div className="border-b border-line p-6">
           <h2 className="section-title">Fila de Disparos</h2>
-          <p className="section-copy">Os registros de envio aparecerao aqui assim que campanhas estiverem ativas.</p>
+          <p className="section-copy">Os registros de envio aparecerão aqui assim que campanhas estiverem ativas.</p>
         </div>
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-wash text-xs uppercase tracking-wide text-muted">
@@ -1156,15 +1156,15 @@ function SendsView() {
 function AutomationsView() {
   const rules = [
     "Triagem por origem",
-    "Tag automatica ao entrar",
-    "Handoff por classificacao da IA",
-    "Horario de atendimento por fonte"
+    "Tag automática ao entrar",
+    "Handoff por classificação da IA",
+    "Horário de atendimento por fonte"
   ];
 
   return (
     <section className="panel p-6">
-      <h2 className="section-title">Automacoes</h2>
-      <p className="section-copy">Regras planejadas para evoluir a operacao sem mudar o fluxo principal agora.</p>
+      <h2 className="section-title">Automações</h2>
+      <p className="section-copy">Regras planejadas para evoluir a operação sem mudar o fluxo principal agora.</p>
       <div className="mt-6 grid gap-3 md:grid-cols-2">
         {rules.map((rule) => (
           <div key={rule} className="flex items-center justify-between gap-4 rounded-xl border border-line bg-wash p-4">
@@ -1184,10 +1184,10 @@ function ReportsView() {
   return (
     <section className="space-y-6">
       <div className="panel p-6">
-        <h2 className="section-title">Relatorios</h2>
-        <p className="section-copy">Os relatorios serao gerados assim que houver dados de campanha.</p>
+        <h2 className="section-title">Relatórios</h2>
+        <p className="section-copy">Os relatórios serão gerados assim que houver dados de campanha.</p>
       </div>
-      <EmptyState title="Nenhum relatorio disponivel ainda." text="Depois dos primeiros leads, disparos e respostas reais, esta area pode receber indicadores por origem e campanha." />
+      <EmptyState title="Nenhum relatório disponível ainda." text="Depois dos primeiros leads, disparos e respostas reais, esta área pode receber indicadores por origem e campanha." />
     </section>
   );
 }
@@ -1196,7 +1196,7 @@ function PlaceholderView({ title }: { title: string }) {
   return (
     <section className="panel p-6">
       <h2 className="section-title">{title}</h2>
-      <p className="section-copy">Modulo reservado para a proxima fase do ThM ConnectX.</p>
+      <p className="section-copy">Módulo reservado para a próxima fase do ThM ConnectX.</p>
     </section>
   );
 }
@@ -1252,7 +1252,7 @@ function getNextRecommendedStep(setup: SetupStatus | null) {
   if (byKey("whatsapp_cloud_connected")?.status !== "connected" || byKey("phone_number_id_configured")?.status !== "connected") {
     return {
       title: "Configure o WhatsApp Cloud API",
-      description: "Adicione token, Phone Number ID e valide a conexao com a Graph API antes de enviar campanhas."
+      description: "Adicione token, Phone Number ID e valide a conexão com a Graph API antes de enviar campanhas."
     };
   }
   if (byKey("templates_available")?.status !== "connected") {
@@ -1280,12 +1280,12 @@ function getNextRecommendedStep(setup: SetupStatus | null) {
 }
 
 function connectionStatusLabel(source?: LeadSource) {
-  if (!source || source.status === "not_configured") return "Nao configurado";
+  if (!source || source.status === "not_configured") return "Não configurado";
   if (source.error_count && source.error_count > 0) return "Com erro";
   if (source.status === "working" || source.status === "active") return "Funcionando";
   if (source.status === "configured") return "Configurado";
   if (source.status === "pending" || source.status === "prepared") return "Configurado";
-  if (!source.api_key) return "Nao configurado";
+  if (!source.api_key) return "Não configurado";
   return source.status;
 }
 
@@ -1307,12 +1307,12 @@ function connectionStatusStyle(source?: LeadSource) {
 
 function connectionHelpText(status: string) {
   const texts: Record<string, string> = {
-    "Nao configurado": "Ainda falta criar credenciais ou URL para esta fonte.",
-    Configurado: "A fonte tem dados basicos, mas ainda nao recebeu leads.",
-    "Com erro": "Existe erro recente. Abra os logs antes de usar em producao.",
-    Funcionando: "A fonte esta pronta para receber leads reais."
+    "Não configurado": "Ainda falta criar credenciais ou URL para esta fonte.",
+    Configurado: "A fonte tem dados básicos, mas ainda não recebeu leads.",
+    "Com erro": "Existe erro recente. Abra os logs antes de usar em produção.",
+    Funcionando: "A fonte está pronta para receber leads reais."
   };
-  return texts[status] ?? "Revise a configuracao antes de ativar automacoes.";
+  return texts[status] ?? "Revise a configuração antes de ativar automações.";
 }
 
 function InfoBlock({ title, value }: { title: string; value: string }) {
@@ -1348,7 +1348,7 @@ function labelFor(key: string) {
     company: "Empresa",
     city: "Cidade",
     niche: "Nicho",
-    tags: "Tags separadas por virgula"
+    tags: "Tags separadas por vírgula"
   };
   return labels[key] ?? key;
 }
@@ -1363,7 +1363,7 @@ function formatDate(value: string) {
 }
 
 function formatDateTime(value?: string) {
-  if (!value) return "Ainda nao verificado";
+  if (!value) return "Ainda não verificado";
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -1371,4 +1371,3 @@ function formatDateTime(value?: string) {
     minute: "2-digit"
   }).format(new Date(value));
 }
-

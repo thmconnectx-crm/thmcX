@@ -31,7 +31,7 @@ Colunas aceitas em PT-BR ou EN:
 - `nicho` ou `niche`
 - `origem` ou `source`
 - `status`
-- `tags` separadas por virgula
+- `tags` separadas por vírgula
 - `observacoes` ou `observations`
 
 ```http
@@ -55,13 +55,13 @@ GET /leads?city=Cuiaba&niche=beleza&tag=cuiaba&status=novo
 
 ## Campanhas
 
-Campanhas de primeira abordagem usam template oficial do WhatsApp. `message_body` e usado como preview interno e historico, nao como texto livre enviado pela Cloud API.
+Campanhas de primeira abordagem usam template oficial do WhatsApp. `message_body` e usado como preview interno e histórico, não como texto livre enviado pela Cloud API.
 
 ```http
 POST /campaigns
 {
   "name": "Beleza Cuiaba",
-  "message_body": "Ola, Maria. Recebi seu cadastro sobre captacao de clientes pela internet...",
+  "message_body": "Olá, Maria. Recebi seu cadastro sobre captação de clientes pela internet...",
   "template_id": "uuid-do-template-aprovado",
   "template_variables": ["[nome]"],
   "daily_limit": 30,
@@ -104,7 +104,7 @@ Enviar mensagem humana:
 ```http
 POST /conversations/:id/send
 {
-  "body": "Claro. Posso te mandar algumas opcoes de horarios?"
+  "body": "Claro. Posso te mandar algumas opcoes de horários?"
 }
 ```
 
@@ -117,7 +117,7 @@ POST /conversations/:id/mark
 }
 ```
 
-Valores aceitos: `interessado`, `sem_interesse`, `humano_necessario`, `opt_out`.
+Valores aceitos: `interessado`, `sem_interesse`, `humano_necessário`, `opt_out`.
 
 ## Webhook WhatsApp
 
@@ -135,7 +135,7 @@ POST /webhooks/whatsapp
 
 O webhook registra mensagens inbound, atualiza status de mensagens por `whatsapp_message_id`, detecta opt-out e chama IA quando a conversa permite.
 
-## Conexoes Externas
+## Conexões Externas
 
 Listar fontes:
 
@@ -154,9 +154,9 @@ POST /integrations
   "settings": {
     "auto_ai_enabled": true,
     "send_first_message": true,
-    "auto_tag": "diagnostico_trafego",
+    "auto_tag": "diagnóstico_trafego",
     "initial_status": "novo_lead_ads",
-    "first_message_body": "Ola, [nome]. Tudo bem?\n\nRecebi seu cadastro sobre captacao de clientes pela internet.\n\nPara eu entender melhor: hoje voce ja anuncia no Google, Instagram ou Facebook?"
+    "first_message_body": "Olá, [nome]. Tudo bem?\n\nRecebi seu cadastro sobre captação de clientes pela internet.\n\nPara eu entender melhor: hoje você já anuncia no Google, Instagram ou Facebook?"
   }
 }
 ```
@@ -191,7 +191,7 @@ X-API-Key: <api_key_da_fonte>
 }
 ```
 
-API publica:
+API pública:
 
 ```http
 POST /public/leads
@@ -222,7 +222,7 @@ Resposta:
 }
 ```
 
-O processamento salva `incoming_leads`, registra `integration_logs`, normaliza telefone, deduplica por telefone, cria historico em `lead_source_history`, cria conversa e aplica automacoes da fonte.
+O processamento salva `incoming_leads`, registra `integration_logs`, normaliza telefone, deduplica por telefone, cria histórico em `lead_source_history`, cria conversa e aplica automações da fonte.
 
 ## Templates WhatsApp
 
@@ -238,11 +238,11 @@ Criar template:
 ```http
 POST /templates
 {
-  "name": "Primeiro contato - diagnostico",
-  "whatsapp_template_name": "diagnostico_primeiro_contato",
+  "name": "Primeiro contato - diagnóstico",
+  "whatsapp_template_name": "diagnóstico_primeiro_contato",
   "language_code": "pt_BR",
   "category": "MARKETING",
-  "body_preview": "Ola, {{1}}. Recebi seu cadastro sobre captacao de clientes pela internet.",
+  "body_preview": "Olá, {{1}}. Recebi seu cadastro sobre captação de clientes pela internet.",
   "variables": ["[nome]"],
   "status": "approved"
 }

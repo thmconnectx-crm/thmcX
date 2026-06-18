@@ -49,7 +49,7 @@ export async function sendHumanMessage(tenantId: string, conversationId: string,
     await supabase.from("conversations").select("*, leads(*)").eq("id", conversationId).eq("tenant_id", tenantId).single()
   ) as { id: string; lead_id: string; leads: { phone: string; opt_out: boolean } };
 
-  if (conversation.leads.opt_out) throw new Error("Lead esta em opt-out");
+  if (conversation.leads.opt_out) throw new Error("Lead está em opt-out");
 
   const sent = await sendWhatsAppText(conversation.leads.phone, body);
   return assertDb(
@@ -78,7 +78,7 @@ export async function takeoverConversation(tenantId: string, conversationId: str
         assigned_user_id: userId,
         ai_enabled: false,
         human_needed: true,
-        status: "humano_necessario",
+        status: "humano_necessário",
         updated_at: new Date().toISOString()
       })
       .eq("id", conversationId)
@@ -104,7 +104,7 @@ export async function markConversation(tenantId: string, conversationId: string,
   const conversation = assertDb(
     await supabase.from("conversations").select("lead_id").eq("id", conversationId).eq("tenant_id", tenantId).single()
   ) as { lead_id: string };
-  const humanNeeded = status === "interessado" || status === "humano_necessario";
+  const humanNeeded = status === "interessado" || status === "humano_necessário";
   if (status === "opt_out") {
     await supabase.from("leads").update({ opt_out: true, status: "opt_out" }).eq("id", conversation.lead_id).eq("tenant_id", tenantId);
   }

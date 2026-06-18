@@ -93,9 +93,9 @@ export const worker = new Worker<SendJob, unknown, string>(
         campaign_id: campaignId,
         lead_id: leadId,
         status: "skipped",
-        error: "Fora do horario permitido"
+        error: "Fora do horário permitido"
       });
-      throw new Error("Fora do horario permitido");
+      throw new Error("Fora do horário permitido");
     }
     if ((await countSentToday(tenantId, campaignId, campaign.timezone ?? undefined)) >= campaign.daily_limit) {
       await supabase.from("send_logs").insert({
@@ -103,7 +103,7 @@ export const worker = new Worker<SendJob, unknown, string>(
         campaign_id: campaignId,
         lead_id: leadId,
         status: "skipped",
-        error: "Limite diario atingido"
+        error: "Limite diário atingido"
       });
       return { skipped: "daily_limit" };
     }
@@ -136,7 +136,7 @@ export const worker = new Worker<SendJob, unknown, string>(
         campaign_id: campaignId,
         lead_id: leadId,
         status: "blocked_no_opt_in",
-        error: "Lead sem autorizacao opt-in"
+        error: "Lead sem autorização opt-in"
       });
       return { skipped: "no_opt_in" };
     }

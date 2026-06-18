@@ -378,8 +378,21 @@ function pending(key: string, label: string, message: string) {
 }
 
 function failed(key: string, label: string, message: string, error: unknown) {
-  const errorMessage = error instanceof Error ? error.message : "Erro desconhecido.";
+  const errorMessage = formatErrorMessage(error);
   return makeCheck({ key, label, status: "error", message, error_message: errorMessage });
+}
+
+function formatErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const payload = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    const parts = [payload.message, payload.details, payload.hint, payload.code]
+      .filter((item): item is string => typeof item === "string" && item.length > 0);
+    if (parts.length) return parts.join(" ");
+    return JSON.stringify(error);
+  }
+  return "Erro desconhecido.";
 }
 
 function makeCheck(input: Omit<SystemCheck, "last_checked_at">): SystemCheck {

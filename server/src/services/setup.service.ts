@@ -71,9 +71,9 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
 
   const demoStatus = makeCheck({
     key: "demo_mode",
-    label: "Modo demonstracao ativo/inativo",
-    status: "pending",
-    message: "A API usa dados reais; o modo demonstracao e ativado somente no painel com ?preview=1."
+    label: "Dados reais ativos",
+    status: "connected",
+    message: "O painel esta usando a API e o banco configurados no ambiente."
   });
 
   const checks = [
@@ -135,9 +135,9 @@ async function runCheckByKey(tenantId: string, key: string): Promise<SystemCheck
     demo_mode: () =>
       makeCheck({
         key: "demo_mode",
-        label: "Modo demonstracao ativo/inativo",
-        status: "pending",
-        message: "A API usa dados reais; o modo demonstracao e ativado somente no painel com ?preview=1."
+        label: "Dados reais ativos",
+        status: "connected",
+        message: "O painel esta usando a API e o banco configurados no ambiente."
       }),
     templates_available: () => checkApprovedTemplate(tenantId),
     template_approved: () => checkApprovedTemplate(tenantId)

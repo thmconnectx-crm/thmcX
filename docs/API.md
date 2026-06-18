@@ -266,7 +266,7 @@ Retorna o checklist usado no painel com status detalhado:
 - Phone Number ID configurado
 - Webhook verificado
 - Worker de disparos rodando
-- Modo demo ativo/inativo
+- Dados reais ativos
 
 Formato:
 

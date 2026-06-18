@@ -41,11 +41,10 @@ npm run inbound-worker
 
 API: `http://localhost:4000`
 Painel: `http://localhost:5173` ou outra porta livre do Vite.
-Previa local sem credenciais: `http://localhost:5174/?preview=1`
 
 ## Usuario inicial
 
-Abra o painel fora de `?preview=1` e use `Criar conta`. A primeira conta criada vira admin do tenant/empresa.
+Abra o painel e use `Criar conta`. A primeira conta criada vira admin do tenant/empresa.
 
 ## Webhook WhatsApp
 

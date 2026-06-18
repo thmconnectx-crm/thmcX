@@ -108,12 +108,7 @@ const connectionCards = [
 ];
 
 export function App() {
-  const isPreview = new URLSearchParams(window.location.search).get("preview") === "1";
   const [token, setToken] = useState(() => {
-    if (isPreview) {
-      localStorage.setItem("token", "preview");
-      return "preview";
-    }
     if (localStorage.getItem("token") === "preview") localStorage.removeItem("token");
     return localStorage.getItem("token");
   });
@@ -188,7 +183,6 @@ export function App() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{tabDescriptions[tab]}</p>
             </div>
             <div className="flex items-center gap-3">
-              {isPreview && <span className="status-badge hidden text-ink sm:inline-flex">Modo demonstracao</span>}
               <span className="hidden text-xs text-tertiary xl:inline">Produto da ThM IX Company</span>
             </div>
           </div>
@@ -249,10 +243,6 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
     }
   }
 
-  function preview() {
-    window.location.href = "/?preview=1";
-  }
-
   return (
     <main className="grid min-h-screen place-items-center bg-wash px-4">
       <form className="panel w-full max-w-md p-7" onSubmit={submit}>
@@ -309,9 +299,6 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
         <button className="btn-primary mt-5 w-full" disabled={loading}>
           {loading ? "Aguarde" : mode === "register" ? "Criar conta" : "Entrar"}
         </button>
-        <button type="button" className="btn-secondary mt-2 w-full" onClick={preview}>
-          Ver previa local
-        </button>
         {mode === "register" && (
           <p className="mt-4 text-xs leading-5 text-muted">
             A conta criada sera o administrador do tenant. Os dados de leads, campanhas e conversas ficarao isolados por empresa.
@@ -325,8 +312,6 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
 function DashboardView() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [setup, setSetup] = useState<SetupStatus | null>(null);
-  const [testResult, setTestResult] = useState<Array<{ label: string; status: "done" | "pending" }>>([]);
-  const isPreview = new URLSearchParams(window.location.search).get("preview") === "1";
 
   useEffect(() => {
     void request<Dashboard>("/dashboard").then(setData);
@@ -355,23 +340,6 @@ function DashboardView() {
       ]
     : [];
 
-  function runFullTest() {
-    const steps = [
-      "Lead recebido",
-      "Conversa criada",
-      "IA respondeu",
-      "Humano necessario"
-    ].map((label) => ({ label, status: "pending" as const }));
-    setTestResult(steps);
-    steps.forEach((_, index) => {
-      window.setTimeout(() => {
-        setTestResult((current) =>
-          current.map((item, itemIndex) => (itemIndex <= index ? { ...item, status: "done" } : item))
-        );
-      }, 450 * (index + 1));
-    });
-  }
-
   return (
     <section className="space-y-4">
       <div className="panel p-6">
@@ -380,27 +348,8 @@ function DashboardView() {
             <p className="text-sm font-medium text-ink">Proximo passo recomendado</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{nextStep.title}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted">{nextStep.description}</p>
-            {isPreview && (
-              <p className="mt-2 inline-flex rounded-md border border-line bg-wash px-2 py-1 text-xs font-medium text-ink">
-                Modo demonstracao: este painel nao esta usando seu banco real.
-              </p>
-            )}
           </div>
-          <button className="btn-primary" onClick={runFullTest}>
-            <Play size={16} />
-            Executar teste completo
-          </button>
         </div>
-        {testResult.length > 0 && (
-          <div className="mt-5 grid gap-3 sm:grid-cols-4">
-            {testResult.map((step) => (
-              <div key={step.label} className="flex items-center gap-2 rounded-md border border-line bg-wash p-3 text-sm">
-                {step.status === "done" ? <CheckCircle2 className="text-ink" size={17} /> : <RefreshCw className="text-muted" size={17} />}
-                {step.label}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {!hasActivity ? (
@@ -523,12 +472,12 @@ function ConnectionsView() {
   const [dashboard, setDashboard] = useState<ConnectionsDashboard | null>(null);
   const [selected, setSelected] = useState<LeadSource | null>(null);
   const [form, setForm] = useState({
-    name: "Landing Page - Diagnostico Gratuito",
+    name: "",
     type: "landing_page",
-    auto_tag: "diagnostico_trafego",
-    initial_status: "novo_lead_ads",
-    send_first_message: true,
-    auto_ai_enabled: true
+    auto_tag: "",
+    initial_status: "recebido",
+    send_first_message: false,
+    auto_ai_enabled: false
   });
 
   const load = () => {
@@ -565,7 +514,6 @@ function ConnectionsView() {
 
   const sourceByType = (type: string) => sources.find((source) => source.type === type);
   const hasIncomingLeads = Boolean(dashboard && dashboard.total_incoming > 0);
-  const isPreview = new URLSearchParams(window.location.search).get("preview") === "1";
   const metricCards = dashboard
     ? [
         ["Recebidos hoje", dashboard.leads_received_today],
@@ -579,18 +527,7 @@ function ConnectionsView() {
 
   return (
     <section className="space-y-6">
-      {isPreview && (
-        <div className="panel flex flex-wrap items-center justify-between gap-3 p-5">
-          <div>
-            <span className="status-badge text-ink">Modo demonstracao</span>
-            <p className="mt-2 text-sm text-muted">
-              Dados de exemplo para visualizar o fluxo. Fora de <code>?preview=1</code>, o painel busca somente dados reais da API.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {(isPreview || hasIncomingLeads) && (
+      {hasIncomingLeads && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           {metricCards.map(([label, value]) => (
             <div key={label} className="panel p-5">
@@ -601,7 +538,7 @@ function ConnectionsView() {
         </div>
       )}
 
-      {!isPreview && !hasIncomingLeads && (
+      {!hasIncomingLeads && (
         <EmptyState
           title="Nenhum lead recebido ainda."
           text="Configure uma fonte para comecar a receber contatos."
@@ -730,13 +667,12 @@ function ConnectionsView() {
 function TemplatesView() {
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [form, setForm] = useState({
-    name: "Primeiro contato - diagnostico",
-    whatsapp_template_name: "diagnostico_primeiro_contato",
+    name: "",
+    whatsapp_template_name: "",
     language_code: "pt_BR",
     category: "MARKETING",
-    body_preview:
-      "Ola, {{1}}. Tudo bem?\n\nRecebi seu cadastro sobre captacao de clientes pela internet. Hoje voce ja anuncia no Google, Instagram ou Facebook?",
-    variables: "[nome]",
+    body_preview: "",
+    variables: "",
     status: "pending"
   });
 
@@ -817,7 +753,6 @@ function TemplatesView() {
 function SettingsView() {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [testingKey, setTestingKey] = useState<string | null>(null);
-  const isPreview = new URLSearchParams(window.location.search).get("preview") === "1";
 
   useEffect(() => {
     void request<SetupStatus>("/setup/status").then(setStatus);
@@ -841,15 +776,9 @@ function SettingsView() {
 
   return (
     <section className="space-y-6">
-      {isPreview ? (
-        <div className="panel p-5 text-sm text-ink">
-          <strong>Modo demonstracao ativo.</strong> Os cards abaixo usam dados mockados e nao fazem chamadas reais para Supabase, Redis, OpenAI ou WhatsApp.
-        </div>
-      ) : (
-        <div className="panel p-5 text-sm text-ink">
-          Dados reais ativos. Esta tela consulta a API e os servicos configurados no ambiente.
-        </div>
-      )}
+      <div className="panel p-5 text-sm text-ink">
+        Dados reais ativos. Esta tela consulta a API e os servicos configurados no ambiente.
+      </div>
 
       <div className="panel p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1252,27 +1181,13 @@ function AutomationsView() {
 }
 
 function ReportsView() {
-  const cards = [
-    "Leads por origem",
-    "Taxa de resposta por campanha",
-    "Tempo medio ate handoff",
-    "Opt-outs por periodo"
-  ];
-
   return (
     <section className="space-y-6">
       <div className="panel p-6">
         <h2 className="section-title">Relatorios</h2>
         <p className="section-copy">Os relatorios serao gerados assim que houver dados de campanha.</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map((label) => (
-          <div key={label} className="panel p-6">
-            <p className="metric-label">{label}</p>
-            <strong className="metric-value">0</strong>
-          </div>
-        ))}
-      </div>
+      <EmptyState title="Nenhum relatorio disponivel ainda." text="Depois dos primeiros leads, disparos e respostas reais, esta area pode receber indicadores por origem e campanha." />
     </section>
   );
 }

@@ -132,7 +132,7 @@ Os workers precisam de Supabase, Redis e as credenciais usadas para WhatsApp/Ope
 
 ## 5. Primeiro acesso
 
-1. Abra o painel fora de `?preview=1`.
+1. Abra o painel.
 2. Clique em `Criar conta`.
 3. Informe nome da empresa, email e senha.
 4. A primeira conta criada vira admin do tenant.

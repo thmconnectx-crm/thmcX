@@ -178,8 +178,13 @@ async function checkOpenAI(): Promise<SystemCheck> {
 
   try {
     const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-    await client.models.retrieve(env.OPENAI_MODEL);
-    return connected("openai_connected", "OpenAI conectada", `Modelo ${env.OPENAI_MODEL} acessível.`);
+    await client.chat.completions.create({
+      model: env.OPENAI_MODEL,
+      temperature: 0,
+      max_tokens: 3,
+      messages: [{ role: "user", content: "Responda apenas: ok" }]
+    });
+    return connected("openai_connected", "OpenAI conectada", `Modelo ${env.OPENAI_MODEL} respondeu com sucesso.`);
   } catch (error) {
     return failed("openai_connected", "OpenAI conectada", "Não foi possível validar a OpenAI.", error);
   }

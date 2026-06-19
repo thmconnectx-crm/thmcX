@@ -174,6 +174,7 @@ async function checkRedis(): Promise<SystemCheck> {
 }
 
 async function checkOpenAI(): Promise<SystemCheck> {
+  if (env.AI_PROVIDER === "gemini") return checkGemini();
   if (!env.OPENAI_API_KEY) return pending("openai_connected", "OpenAI conectada", "Configure OPENAI_API_KEY no ambiente da API.");
 
   try {
@@ -187,6 +188,29 @@ async function checkOpenAI(): Promise<SystemCheck> {
     return connected("openai_connected", "OpenAI conectada", `Modelo ${env.OPENAI_MODEL} respondeu com sucesso.`);
   } catch (error) {
     return failed("openai_connected", "OpenAI conectada", "Não foi possível validar a OpenAI.", error);
+  }
+}
+
+async function checkGemini(): Promise<SystemCheck> {
+  if (!env.GEMINI_API_KEY) return pending("openai_connected", "IA conectada", "Configure GEMINI_API_KEY no ambiente da API.");
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": env.GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: "Responda apenas: ok" }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 3 }
+      })
+    });
+    const payload = (await response.json()) as { error?: { message?: string } };
+    if (!response.ok) throw new Error(payload.error?.message ?? "Gemini API recusou a conexão.");
+    return connected("openai_connected", "IA conectada", `Gemini ${env.GEMINI_MODEL} respondeu com sucesso.`);
+  } catch (error) {
+    return failed("openai_connected", "IA conectada", "Não foi possível validar o Gemini.", error);
   }
 }
 

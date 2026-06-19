@@ -16,8 +16,11 @@ const envSchema = z.object({
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().default(""),
   WHATSAPP_APP_SECRET: z.string().default(""),
   WHATSAPP_API_VERSION: z.string().default("v20.0"),
+  AI_PROVIDER: z.enum(["openai", "gemini"]).default("openai"),
   OPENAI_API_KEY: z.string().default(""),
-  OPENAI_MODEL: z.string().default("gpt-4.1-mini")
+  OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
+  GEMINI_API_KEY: z.string().default(""),
+  GEMINI_MODEL: z.string().default("gemini-3.5-flash")
 });
 
 export const env = envSchema.parse(process.env);

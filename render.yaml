@@ -33,10 +33,16 @@ services:
         sync: false
       - key: WHATSAPP_API_VERSION
         value: v20.0
+      - key: AI_PROVIDER
+        value: openai
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4.1-mini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
 
   - type: web
     name: thm-connectx-panel

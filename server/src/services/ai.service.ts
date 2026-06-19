@@ -6,6 +6,15 @@ function getOpenAiClient() {
   return new OpenAI({ apiKey: env.OPENAI_API_KEY });
 }
 
+type GeminiResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+  error?: { message?: string };
+};
+
 export type AiClassification =
   | "interessado"
   | "curioso"
@@ -113,24 +122,16 @@ export async function generateAiReply(
   const questionCount = countDiagnosticQuestions(history);
   const latestLeadMessage = [...history].reverse().find((message) => message.sender_type === "lead")?.body ?? "";
 
-  const response = await getOpenAiClient().chat.completions.create({
-    model: env.OPENAI_MODEL,
-    temperature: 0.4,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: mode === "external_lead" ? externalLeadPrompt : systemPrompt },
-      {
-        role: "user",
-        content: `Histórico da conversa:
+  const prompt = `Histórico da conversa:
 ${messages}
 
 Perguntas de triagem já feitas pela campanha/IA: ${questionCount}.
-Se já houver 3 ou mais perguntas e o lead não recusou, encaminhe para humano quando houver qualquer sinal de oportunidade.`
-      }
-    ]
-  });
+Se já houver 3 ou mais perguntas e o lead não recusou, encaminhe para humano quando houver qualquer sinal de oportunidade.`;
 
-  const content = response.choices[0]?.message.content ?? "{}";
+  const content =
+    env.AI_PROVIDER === "gemini"
+      ? await generateGeminiJson(mode === "external_lead" ? externalLeadPrompt : systemPrompt, prompt)
+      : await generateOpenAiJson(mode === "external_lead" ? externalLeadPrompt : systemPrompt, prompt);
   const parsed = JSON.parse(content) as Partial<AiReply>;
   const forcedHuman = requiresHumanHandoff(latestLeadMessage);
   const optOut = Boolean(parsed.opt_out);
@@ -143,6 +144,51 @@ Se já houver 3 ou mais perguntas e o lead não recusou, encaminhe para humano q
     human_needed: humanNeeded,
     opt_out: optOut
   };
+}
+
+async function generateOpenAiJson(system: string, prompt: string) {
+  const response = await getOpenAiClient().chat.completions.create({
+    model: env.OPENAI_MODEL,
+    temperature: 0.4,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  return response.choices[0]?.message.content ?? "{}";
+}
+
+async function generateGeminiJson(system: string, prompt: string) {
+  if (!env.GEMINI_API_KEY) throw new Error("Configure GEMINI_API_KEY antes de usar respostas com IA.");
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": env.GEMINI_API_KEY
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: system }]
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        responseMimeType: "application/json"
+      }
+    })
+  });
+
+  const payload = (await response.json()) as GeminiResponse;
+  if (!response.ok) throw new Error(payload.error?.message ?? "Falha ao chamar Gemini API.");
+  return payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") || "{}";
 }
 
 function normalizeClassification(

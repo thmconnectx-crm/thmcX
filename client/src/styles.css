@@ -39,6 +39,10 @@ textarea {
   background: var(--color-surface);
 }
 
+.empty-state {
+  border-left: 4px solid var(--color-text);
+}
+
 .input {
   @apply focus-ring w-full border bg-white px-3 text-sm text-ink placeholder:text-muted;
   height: 44px;

@@ -132,7 +132,7 @@ export function App() {
               <button
                 key={item.id}
                 className={`flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition ${
-                  item.id === tab ? "bg-accent font-medium text-ink" : "text-muted hover:bg-wash hover:text-ink"
+                  item.id === tab ? "bg-ink font-medium text-white" : "text-muted hover:bg-wash hover:text-ink"
                 }`}
                 onClick={() => setTab(item.id)}
               >
@@ -149,7 +149,7 @@ export function App() {
               <button
                 key={item.id}
                 className={`flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition ${
-                  item.id === tab ? "bg-accent font-medium text-ink" : "text-muted hover:bg-wash hover:text-ink"
+                  item.id === tab ? "bg-ink font-medium text-white" : "text-muted hover:bg-wash hover:text-ink"
                 }`}
                 onClick={() => setTab(item.id)}
               >
@@ -173,17 +173,17 @@ export function App() {
       </aside>
 
       <div className="lg:pl-64">
-        <header className="border-b border-line bg-white">
+        <header className="border-b border-black bg-ink text-white">
           <div className="flex items-center justify-between gap-4 px-5 py-6 lg:px-10">
             <div>
-              <div className="mb-4 lg:hidden">
+              <div className="mb-4 inline-flex rounded-lg bg-white p-2 lg:hidden">
                 <Logo variant="horizontal" />
               </div>
-              <h2 className="text-[28px] font-bold leading-tight tracking-tight">{menu.find((item) => item.id === tab)?.label}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{tabDescriptions[tab]}</p>
+              <h2 className="text-[28px] font-bold leading-tight tracking-tight text-white">{menu.find((item) => item.id === tab)?.label}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">{tabDescriptions[tab]}</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="hidden text-xs text-tertiary xl:inline">Ambiente operacional</span>
+              <span className="hidden rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 xl:inline">Ambiente operacional</span>
             </div>
           </div>
           <nav className="flex gap-2 overflow-x-auto px-4 pb-3 lg:hidden">
@@ -619,8 +619,8 @@ function ConnectionsView() {
                 <div key={card.title} className="panel p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-wash">
-                        <Icon size={18} className="text-muted" />
+                      <div className="grid h-10 w-10 place-items-center rounded-lg border border-ink bg-ink">
+                        <Icon size={18} className="text-white" />
                       </div>
                       <h3 className="mt-4 font-semibold">{source?.name ?? card.title}</h3>
                     </div>
@@ -1203,7 +1203,7 @@ function PlaceholderView({ title }: { title: string }) {
 
 function EmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="panel p-8 text-sm">
+    <div className="panel empty-state p-8 text-sm">
       <h3 className="section-title">{title}</h3>
       <p className="section-copy">{text}</p>
     </div>

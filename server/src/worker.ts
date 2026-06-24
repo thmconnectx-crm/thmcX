@@ -22,7 +22,7 @@ async function writeWorkerHeartbeat() {
 }
 
 void writeWorkerHeartbeat().catch((error) => console.error("Worker heartbeat failed:", error.message));
-setInterval(() => {
+const heartbeatInterval = setInterval(() => {
   void writeWorkerHeartbeat().catch((error) => console.error("Worker heartbeat failed:", error.message));
 }, 30000);
 
@@ -228,6 +228,34 @@ export const worker = new Worker<SendJob, unknown, string>(
 worker.on("failed", (_job, error) => {
   console.error("Send job failed:", error.message);
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: NodeJS.Signals) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received. Closing campaign worker...`);
+  clearInterval(heartbeatInterval);
+
+  const timeout = setTimeout(() => {
+    console.error("Campaign worker shutdown timeout reached. Exiting.");
+    process.exit(1);
+  }, 10000);
+  timeout.unref();
+
+  try {
+    await worker.close();
+    clearTimeout(timeout);
+    console.log("Campaign worker closed.");
+    process.exit(0);
+  } catch (error) {
+    console.error("Campaign worker shutdown failed:", error);
+    process.exit(1);
+  }
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 async function loadApprovedTemplate(tenantId: string, templateId?: string | null, templateName?: string | null) {
   if (!templateId && !templateName) return null;

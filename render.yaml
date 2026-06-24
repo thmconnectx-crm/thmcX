@@ -34,7 +34,7 @@ services:
       - key: WHATSAPP_API_VERSION
         value: v20.0
       - key: AI_PROVIDER
-        value: openai
+        value: gemini
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
@@ -43,6 +43,12 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
+      - key: SEED_TENANT_NAME
+        value: ThM ConnectX
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
 
   - type: web
     name: thm-connectx-panel

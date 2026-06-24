@@ -1,23 +1,23 @@
 # Deploy Supabase + Render
 
-Este roteiro deixa o ThM ConnectX pronto para teste real controlado.
+Este roteiro prepara o ThM ConnectX para o primeiro teste real com leads, WhatsApp Cloud API e IA.
 
-## 1. Supabase
+## 1. Preparar o Supabase
 
-Para um projeto novo, abra o SQL Editor do Supabase e rode:
+No Supabase, crie um projeto e rode o schema principal no SQL Editor:
 
 ```sql
--- cole o conteudo de server/supabase/schema.sql
+-- cole o conteúdo de server/supabase/schema.sql
 ```
 
-Para um banco que já recebeu uma versão anterior, rode as migrations nesta ordem:
+Se o banco já recebeu versões anteriores, rode as migrations nesta ordem:
 
 1. `server/supabase/2026-06-15-connectx-integrations.sql`
 2. `server/supabase/2026-06-16-refresh-tokens.sql`
 3. `server/supabase/2026-06-16-messages-whatsapp-message-id-unique.sql`
 4. `server/supabase/2026-06-16-multitenancy.sql`
 
-Antes da migration de multi-tenancy em banco com dados reais, verifique duplicidades:
+Antes de aplicar migrations em banco com dados reais, confira duplicidades:
 
 ```sql
 select phone, count(*) from leads group by phone having count(*) > 1;
@@ -29,72 +29,55 @@ group by whatsapp_message_id
 having count(*) > 1;
 ```
 
-## 2. Escolha o modo de deploy
+## 2. Escolher o modo de deploy
 
-### Modo Free/manual para validação
+### Modo Free/manual
 
-Use `render.yaml`.
+Use `render.yaml` para validação inicial no plano Free do Render.
 
-Ele cria somente:
+Ele cria:
 
 - `thm-connectx-api`: API Express.
-- `thm-connectx-panel`: painel React estatico.
+- `thm-connectx-panel`: painel React estático.
 
 Neste modo:
 
 - `QUEUE_MODE=manual`.
-- Redis não e obrigatorio.
+- Redis não é obrigatório.
 - Workers não rodam.
-- Campanhas não disparam em background.
-- Use o botão `Enviar próximo` na campanha para enviar um lead por vez.
+- Campanhas não disparam em segundo plano.
+- O envio controlado é feito pelo painel, um lead por vez.
 - Webhooks recebidos são processados pela própria API.
 
-### Modo Starter/worker para escala
+### Modo Starter/worker
 
-Use `render.worker.yaml` quando quiser ativar o fluxo completo em fila.
+Use `render.worker.yaml` quando for ativar filas e processamento contínuo.
 
-Neste modo:
-
-- `QUEUE_MODE=worker`.
-- Redis e obrigatorio.
-- `thm-connectx-worker` processa disparos.
-- `thm-connectx-inbound-worker` processa mensagens recebidas.
-
-Crie um Redis externo, por exemplo no Render, Railway ou Upstash. Copie a URL para `REDIS_URL`.
-
-## 3. Render
-
-Use o arquivo `render.yaml` na raiz do projeto como blueprint para o modo Free/manual. Ele cria:
-
-- `thm-connectx-api`: API Express.
-- `thm-connectx-panel`: painel React estatico.
-
-Quando for migrar para o plano Starter, use `render.worker.yaml`. Ele cria também:
+Ele cria também:
 
 - `thm-connectx-worker`: worker de disparos.
 - `thm-connectx-inbound-worker`: worker de mensagens recebidas.
 
-Se criar manualmente:
+Neste modo:
+
+- `QUEUE_MODE=worker`.
+- Redis é obrigatório.
+- Disparos e mensagens recebidas passam pelas filas BullMQ.
+
+## 3. Configurar o Render
+
+No Render, crie um Blueprint apontando para o repositório do GitHub.
+
+Para o primeiro teste, use `render.yaml`.
+
+Se criar manualmente, use:
 
 API:
 
 ```bash
 Build: npm install && npm run build -w server
 Start: npm run start -w server
-```
-
-Worker de disparos:
-
-```bash
-Build: npm install && npm run build -w server
-Start: npm run worker -w server
-```
-
-Worker inbound:
-
-```bash
-Build: npm install && npm run build -w server
-Start: npm run inbound-worker
+Health Check Path: /health
 ```
 
 Frontend:
@@ -104,59 +87,126 @@ Build: npm install && npm run build -w client
 Publish directory: client/dist
 ```
 
-## 4. Variáveis
+Worker de disparos, somente no modo Starter:
 
-Na API:
+```bash
+Build: npm install && npm run build -w server
+Start: npm run worker -w server
+```
+
+Worker inbound, somente no modo Starter:
+
+```bash
+Build: npm install && npm run build -w server
+Start: npm run inbound-worker
+```
+
+## 4. Variáveis de ambiente
+
+Use o arquivo `.env.example` como referência completa.
+
+Na API, configure no mínimo:
 
 - `NODE_ENV=production`
-- `QUEUE_MODE=manual` no Free ou `QUEUE_MODE=worker` no Starter
+- `QUEUE_MODE=manual` no plano Free ou `QUEUE_MODE=worker` no Starter
 - `CLIENT_ORIGIN=https://url-do-painel`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `JWT_SECRET`
-- `REDIS_URL` somente no modo worker
 - `WHATSAPP_VERIFY_TOKEN`
 - `WHATSAPP_ACCESS_TOKEN`
 - `WHATSAPP_PHONE_NUMBER_ID`
 - `WHATSAPP_BUSINESS_ACCOUNT_ID`
 - `WHATSAPP_APP_SECRET`
 - `WHATSAPP_API_VERSION=v20.0`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL=gpt-4.1-mini`
+- `AI_PROVIDER=gemini` ou `AI_PROVIDER=openai`
+- `GEMINI_API_KEY`, se usar Gemini
+- `OPENAI_API_KEY`, se usar OpenAI
 
-No frontend:
+No frontend, configure:
 
 - `VITE_API_URL=https://url-da-api`
 
-Os workers precisam de Supabase, Redis e as credenciais usadas para WhatsApp/OpenAI. No modo Free/manual, ignore os workers.
+No modo worker, configure também:
 
-## 5. Primeiro acesso
+- `REDIS_URL`
 
-1. Abra o painel.
-2. Clique em `Criar conta`.
-3. Informe nome da empresa, email e senha.
-4. A primeira conta criada vira admin do tenant.
+Para criar o admin inicial por seed, configure temporariamente na API:
 
-## 6. Checklist antes de campanha real
+- `SEED_TENANT_NAME`
+- `SEED_ADMIN_EMAIL`
+- `SEED_ADMIN_PASSWORD`
 
-- Status do Sistema sem pendencias criticas.
+## 5. Health check
+
+A API expõe:
+
+```http
+GET /health
+```
+
+Resposta esperada:
+
+```json
+{
+  "status": "ok",
+  "ts": "2026-06-23T00:00:00.000Z"
+}
+```
+
+Use essa rota no Render para confirmar que o serviço subiu.
+
+## 6. Criar usuário admin
+
+Depois que as variáveis e o banco estiverem configurados, rode o seed uma vez:
+
+```bash
+npx tsx server/scripts/seed.ts
+```
+
+O script é idempotente. Se o e-mail já existir, ele apenas informa que o usuário já existe.
+
+Alternativa: criar a primeira conta pelo painel em `Criar conta`.
+
+## 7. Configurar webhook da Meta
+
+No app da Meta:
+
+1. Abra o caso de uso do WhatsApp.
+2. Configure a URL de callback:
+
+```text
+https://url-da-api/webhooks/whatsapp
+```
+
+3. Configure o mesmo valor de `WHATSAPP_VERIFY_TOKEN`.
+4. Assine o campo `messages`.
+5. Salve e verifique.
+
+Em produção, mantenha `WHATSAPP_APP_SECRET` configurado para validar a assinatura do webhook.
+
+## 8. Verificar Status do Sistema
+
+No painel, abra `Status do Sistema` ou `Configurações` e confirme:
+
 - Supabase conectado.
-- Redis conectado, apenas no modo worker. No modo manual, o painel mostrará que Redis não é necessário.
-- OpenAI conectada.
+- Redis conectado, somente no modo worker.
+- IA conectada.
 - WhatsApp Cloud API conectada.
-- Phone Number ID e WABA ID configurados.
-- Webhook Meta verificado.
-- Worker de disparos rodando, apenas no modo worker.
-- Worker inbound rodando, apenas no modo worker.
-- Template WhatsApp aprovado e cadastrado no painel.
-- Lead de teste com `opt_in_status=authorized`.
+- Phone Number ID configurado.
+- WhatsApp Business Account ID configurado.
+- Webhook WhatsApp verificado.
+- Worker de disparos rodando, somente no modo worker.
+- Worker inbound rodando, somente no modo worker.
+- Templates WhatsApp disponíveis.
 
-## 7. Teste controlado
+## 9. Primeiro teste real
 
-1. Cadastre um template aprovado no painel.
-2. Cadastre um lead com opt-in autorizado.
+1. Cadastre no painel um template aprovado no Gerenciador do WhatsApp.
+2. Cadastre um lead de teste com `opt_in_status=authorized`.
 3. Crie uma campanha com limite diário baixo.
-4. Inicie a campanha para um único numero.
-5. No modo Free/manual, clique em `Enviar próximo`.
+4. Selecione o template aprovado.
+5. No modo Free/manual, envie o próximo lead pelo painel.
 6. Responda pelo WhatsApp.
-7. Confirme a conversa no painel e o handoff para humano.
+7. Confirme a conversa no painel.
+8. Verifique se a IA classifica corretamente e se o handoff para humano aparece quando houver interesse.

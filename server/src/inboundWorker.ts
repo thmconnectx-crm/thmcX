@@ -15,7 +15,7 @@ async function writeInboundWorkerHeartbeat() {
 }
 
 void writeInboundWorkerHeartbeat().catch((error) => console.error("Inbound worker heartbeat failed:", error.message));
-setInterval(() => {
+const heartbeatInterval = setInterval(() => {
   void writeInboundWorkerHeartbeat().catch((error) => console.error("Inbound worker heartbeat failed:", error.message));
 }, 30000);
 
@@ -31,3 +31,31 @@ export const inboundWorker = new Worker<InboundMessageJob, unknown, string>(
 inboundWorker.on("failed", (_job, error) => {
   console.error("Inbound message job failed:", error.message);
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: NodeJS.Signals) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received. Closing inbound worker...`);
+  clearInterval(heartbeatInterval);
+
+  const timeout = setTimeout(() => {
+    console.error("Inbound worker shutdown timeout reached. Exiting.");
+    process.exit(1);
+  }, 10000);
+  timeout.unref();
+
+  try {
+    await inboundWorker.close();
+    clearTimeout(timeout);
+    console.log("Inbound worker closed.");
+    process.exit(0);
+  } catch (error) {
+    console.error("Inbound worker shutdown failed:", error);
+    process.exit(1);
+  }
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

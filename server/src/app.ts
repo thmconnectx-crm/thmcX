@@ -47,7 +47,7 @@ app.use(
 );
 app.use(morgan("dev"));
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) => res.json({ status: "ok", ts: new Date().toISOString() }));
 app.use("/auth", restrictedLimiter, authRoutes);
 app.use("/webhooks", webhookRoutes);
 app.use("/public", restrictedLimiter, publicRoutes);

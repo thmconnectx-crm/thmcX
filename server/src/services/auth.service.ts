@@ -44,6 +44,7 @@ type UserRow = {
 };
 
 export async function register(email: string, password: string, tenantName: string, name?: string) {
+  const normalizedEmail = email.trim().toLowerCase();
   const passwordHash = await bcrypt.hash(password, 12);
   const tenant = assertDb(
     await supabase.from("tenants").insert({ name: tenantName }).select("*").single()
@@ -54,8 +55,8 @@ export async function register(email: string, password: string, tenantName: stri
       .from("users")
       .insert({
         tenant_id: tenant.id,
-        email,
-        name: name ?? email.split("@")[0],
+        email: normalizedEmail,
+        name: name ?? normalizedEmail.split("@")[0],
         password_hash: passwordHash,
         role: "admin"
       })
@@ -67,7 +68,8 @@ export async function register(email: string, password: string, tenantName: stri
 }
 
 export async function login(email: string, password: string) {
-  const result = await supabase.from("users").select("*").eq("email", email).maybeSingle();
+  const normalizedEmail = email.trim().toLowerCase();
+  const result = await supabase.from("users").select("*").eq("email", normalizedEmail).maybeSingle();
   if (result.error) throw new Error(result.error.message);
   if (!result.data) throw new HttpError(401, "Credenciais invalidas");
 
@@ -93,10 +95,8 @@ export async function refreshToken(refreshToken: string) {
     throw new HttpError(401, "Refresh token expirado");
   }
 
-  return {
-    token: signAccessToken(session.users),
-    user: toPublicUser(session.users)
-  };
+  await supabase.from("refresh_tokens").delete().eq("token_hash", tokenHash);
+  return issueSession(session.users);
 }
 
 export async function logout(refreshToken: string) {
@@ -131,7 +131,7 @@ function signAccessToken(user: UserRow) {
     email: user.email,
     id: user.id
   };
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: accessTokenTtl });
+  return jwt.sign(payload, env.JWT_SECRET, { algorithm: "HS256", expiresIn: accessTokenTtl });
 }
 
 function hashToken(token: string) {

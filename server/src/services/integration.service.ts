@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { assertDb, supabase } from "../db.js";
+import { HttpError } from "../http/errors.js";
 import { getOrCreateConversation } from "./conversation.service.js";
 import { sendWhatsAppText } from "./whatsapp.service.js";
 
@@ -194,15 +195,16 @@ export async function testLeadSource(tenantId: string, id: string) {
 }
 
 export async function receivePublicLead(apiKey: string, payload: unknown) {
-  const source = assertDb(
-    await supabase.from("lead_sources").select("*").eq("api_key", apiKey).eq("type", "api").single()
-  ) as LeadSource;
+  const result = await supabase.from("lead_sources").select("*").eq("api_key", apiKey).eq("type", "api").maybeSingle();
+  if (result.error) throw new Error(result.error.message);
+  if (!result.data) throw new HttpError(401, "API key inválida");
+  const source = result.data as LeadSource;
   return processIncomingLead(source, payload, "public_api");
 }
 
 export async function receiveWebhookLead(sourceId: string, payload: unknown, apiKey?: string) {
   const source = await getSource(sourceId);
-  if (source.api_key && apiKey && source.api_key !== apiKey) throw new Error("API key invalida");
+  if (source.api_key && (!apiKey || !safeEqual(source.api_key, apiKey))) throw new HttpError(401, "API key inválida");
   return processIncomingLead(source, payload, "webhook");
 }
 
@@ -481,6 +483,12 @@ function normalizePhone(value: string) {
 
 function validatePhone(phone: string) {
   if (!/^\d{10,15}$/.test(phone)) throw new Error("Telefone inválido");
+}
+
+function safeEqual(expected: string, received: string) {
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(received);
+  return expectedBuffer.length === receivedBuffer.length && crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
 function toRecord(payload: unknown): Record<string, unknown> {

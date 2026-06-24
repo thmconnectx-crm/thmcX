@@ -26,7 +26,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   if (!token) return next(new HttpError(401, "Token ausente"));
 
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET) as Partial<AuthUser> & {
+    const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as Partial<AuthUser> & {
       tenant_id?: string;
       user_id?: string;
     };

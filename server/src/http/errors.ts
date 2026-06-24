@@ -16,18 +16,24 @@ export function notFound(_req: Request, _res: Response, next: NextFunction) {
 }
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+  const isProduction = process.env.NODE_ENV === "production";
+
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({ error: "Arquivo muito grande. Limite: 5MB" });
   }
 
   if (err instanceof ZodError) {
-    return res.status(400).json({ error: "Dados inválidos", details: err.flatten() });
+    return res.status(400).json({
+      error: "Dados inválidos",
+      ...(isProduction ? {} : { details: err.flatten() })
+    });
   }
 
   if (err instanceof HttpError) {
     return res.status(err.statusCode).json({ error: err.message });
   }
 
-  const message = err instanceof Error ? err.message : "Erro interno";
+  console.error("Unhandled error:", err);
+  const message = isProduction ? "Erro interno" : err instanceof Error ? err.message : "Erro interno";
   return res.status(500).json({ error: message });
 }

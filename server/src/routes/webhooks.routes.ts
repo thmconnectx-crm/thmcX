@@ -14,7 +14,7 @@ router.get(
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === env.WHATSAPP_VERIFY_TOKEN) {
+  if (mode === "subscribe" && typeof token === "string" && safeEqual(token, env.WHATSAPP_VERIFY_TOKEN)) {
     await supabase.from("settings").upsert(
       {
         key: "whatsapp_webhook_verified",
@@ -84,6 +84,12 @@ function isValidMetaSignature(req: Request) {
   const receivedBuffer = Buffer.from(received, "hex");
   const expectedBuffer = Buffer.from(expected, "hex");
 
+  return receivedBuffer.length === expectedBuffer.length && timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+
+function safeEqual(received: string, expected: string) {
+  const receivedBuffer = Buffer.from(received);
+  const expectedBuffer = Buffer.from(expected);
   return receivedBuffer.length === expectedBuffer.length && timingSafeEqual(receivedBuffer, expectedBuffer);
 }
 

@@ -753,25 +753,45 @@ function TemplatesView() {
 function SettingsView() {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [testingKey, setTestingKey] = useState<string | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
-    void request<SetupStatus>("/setup/status").then(setStatus);
+    void refreshStatus();
   }, []);
+
+  async function refreshStatus() {
+    setLoadingStatus(true);
+    setStatusError(null);
+    try {
+      setStatus(await request<SetupStatus>("/setup/status"));
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : "Não foi possível atualizar o checklist.");
+    } finally {
+      setLoadingStatus(false);
+    }
+  }
 
   async function testCheck(key: string) {
     setTestingKey(key);
-    const result = await request<SystemCheck>(setupTestPath(key), {
-      method: "POST",
-      body: JSON.stringify({ key })
-    });
-    setStatus((current) => {
-      if (!current) return current;
-      return {
-        ...current,
-        checks: current.checks.map((item) => (item.key === key ? result : item))
-      };
-    });
-    setTestingKey(null);
+    setStatusError(null);
+    try {
+      const result = await request<SystemCheck>(setupTestPath(key), {
+        method: "POST",
+        body: JSON.stringify({ key })
+      });
+      setStatus((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          checks: current.checks.map((item) => (item.key === key ? result : item))
+        };
+      });
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : "Não foi possível testar este item.");
+    } finally {
+      setTestingKey(null);
+    }
   }
 
   return (
@@ -786,13 +806,17 @@ function SettingsView() {
             <h2 className="section-title">Checklist em tempo real</h2>
             <p className="section-copy">Veja exatamente o que falta configurar antes de usar WhatsApp real.</p>
           </div>
-          <button className="btn-secondary" onClick={() => void request<SetupStatus>("/setup/status").then(setStatus)}>
-            <RefreshCw size={16} />
-            Atualizar tudo
+          <button className="btn-secondary" onClick={() => void refreshStatus()} disabled={loadingStatus}>
+            <RefreshCw size={16} className={loadingStatus ? "animate-spin" : ""} />
+            {loadingStatus ? "Atualizando" : "Atualizar tudo"}
           </button>
         </div>
+        {statusError && <div className="mt-4 rounded-lg border border-line bg-white p-4 text-sm text-ink">{statusError}</div>}
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {loadingStatus && !status && (
+            <div className="rounded-xl border border-line bg-wash p-5 text-sm text-muted">Consultando status do sistema...</div>
+          )}
           {(status?.checks ?? []).map((item) => (
             <div key={item.key} className="rounded-xl border border-line bg-wash p-5">
               <div className="flex items-start justify-between gap-3">

@@ -17,6 +17,7 @@ export async function request<T>(path: string, options: RequestInit = {}, retryO
     const refreshed = await refreshAccessToken();
     if (refreshed) return request<T>(path, options, false);
     clearSessionAndRedirect();
+    throw new Error("Sessão expirada. Faça login novamente.");
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: "Erro na requisição" }));

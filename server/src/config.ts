@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 
 const text = (fallback = "") => z.string().default(fallback).transform((value) => value.trim());
 const enumText = <T extends [string, ...string[]]>(values: T, fallback: T[number]) =>
@@ -150,4 +150,19 @@ const envSchema = baseEnvSchema.superRefine((value, ctx) => {
   }
 });
 
-export const env = envSchema.parse(process.env);
+function loadEnv() {
+  try {
+    return envSchema.parse(process.env);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      console.error("Invalid environment configuration:");
+      for (const issue of error.issues) {
+        console.error(`- ${issue.path.join(".") || "ENV"}: ${issue.message}`);
+      }
+      process.exit(1);
+    }
+    throw error;
+  }
+}
+
+export const env = loadEnv();

@@ -1,29 +1,35 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const text = (fallback = "") => z.string().default(fallback).transform((value) => value.trim());
+const enumText = <T extends [string, ...string[]]>(values: T, fallback: T[number]) =>
+  z
+    .preprocess((value) => (typeof value === "string" ? value.trim() : value), z.enum(values))
+    .default(fallback);
+
 const baseEnvSchema = z.object({
-  NODE_ENV: z.string().default("development"),
-  QUEUE_MODE: z.enum(["worker", "manual"]).default("worker"),
+  NODE_ENV: text("development"),
+  QUEUE_MODE: enumText(["worker", "manual"], "worker"),
   PORT: z.coerce.number().default(4000),
-  CLIENT_ORIGIN: z.string().default("http://localhost:5173"),
-  SUPABASE_URL: z.string().default(""),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().default(""),
-  JWT_SECRET: z.string().min(16),
-  SEED_TENANT_NAME: z.string().default("ThM ConnectX"),
-  SEED_ADMIN_EMAIL: z.string().default(""),
-  SEED_ADMIN_PASSWORD: z.string().default(""),
-  REDIS_URL: z.string().default("redis://localhost:6379"),
-  WHATSAPP_VERIFY_TOKEN: z.string().default(""),
-  WHATSAPP_ACCESS_TOKEN: z.string().default(""),
-  WHATSAPP_PHONE_NUMBER_ID: z.string().default(""),
-  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().default(""),
-  WHATSAPP_APP_SECRET: z.string().default(""),
-  WHATSAPP_API_VERSION: z.string().default("v20.0"),
-  AI_PROVIDER: z.enum(["openai", "gemini"]).default("openai"),
-  OPENAI_API_KEY: z.string().default(""),
-  OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
-  GEMINI_API_KEY: z.string().default(""),
-  GEMINI_MODEL: z.string().default("gemini-3.5-flash")
+  CLIENT_ORIGIN: text("http://localhost:5173"),
+  SUPABASE_URL: text(),
+  SUPABASE_SERVICE_ROLE_KEY: text(),
+  JWT_SECRET: text().pipe(z.string().min(16)),
+  SEED_TENANT_NAME: text("ThM ConnectX"),
+  SEED_ADMIN_EMAIL: text(),
+  SEED_ADMIN_PASSWORD: text(),
+  REDIS_URL: text("redis://localhost:6379"),
+  WHATSAPP_VERIFY_TOKEN: text(),
+  WHATSAPP_ACCESS_TOKEN: text(),
+  WHATSAPP_PHONE_NUMBER_ID: text(),
+  WHATSAPP_BUSINESS_ACCOUNT_ID: text(),
+  WHATSAPP_APP_SECRET: text(),
+  WHATSAPP_API_VERSION: text("v20.0"),
+  AI_PROVIDER: enumText(["openai", "gemini"], "openai"),
+  OPENAI_API_KEY: text(),
+  OPENAI_MODEL: text("gpt-4.1-mini"),
+  GEMINI_API_KEY: text(),
+  GEMINI_MODEL: text("gemini-3.5-flash")
 });
 
 const requiredInProduction = [
@@ -67,6 +73,32 @@ const envSchema = baseEnvSchema.superRefine((value, ctx) => {
       path: ["CLIENT_ORIGIN"],
       message: "CLIENT_ORIGIN deve apontar para a URL pública do painel em produção"
     });
+  }
+
+  try {
+    const url = new URL(value.SUPABASE_URL);
+    if (url.protocol !== "https:" || !url.hostname.endsWith(".supabase.co")) {
+      throw new Error("invalid supabase host");
+    }
+  } catch {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SUPABASE_URL"],
+      message: "SUPABASE_URL deve ser a Project URL do Supabase, no formato https://xxxxx.supabase.co"
+    });
+  }
+
+  for (const origin of value.CLIENT_ORIGIN.split(",").map((item) => item.trim()).filter(Boolean)) {
+    try {
+      const url = new URL(origin);
+      if (url.protocol !== "https:") throw new Error("invalid origin protocol");
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["CLIENT_ORIGIN"],
+        message: "CLIENT_ORIGIN deve conter URL publica valida do painel"
+      });
+    }
   }
 
   if (value.JWT_SECRET === "replace-with-a-long-random-secret") {

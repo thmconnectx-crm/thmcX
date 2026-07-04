@@ -69,7 +69,7 @@ export async function register(email: string, password: string, tenantName: stri
 
 export async function login(email: string, password: string) {
   const normalizedEmail = email.trim().toLowerCase();
-  const result = await supabase.from("users").select("*").eq("email", normalizedEmail).maybeSingle();
+  const result = await queryUserByEmail(normalizedEmail);
   if (result.error) throw new Error(result.error.message);
   if (!result.data) throw new HttpError(401, "Credenciais invalidas");
 
@@ -78,6 +78,14 @@ export async function login(email: string, password: string) {
   if (!ok) throw new HttpError(401, "Credenciais invalidas");
 
   return issueSession(user);
+}
+
+async function queryUserByEmail(email: string) {
+  try {
+    return await supabase.from("users").select("*").eq("email", email).maybeSingle();
+  } catch {
+    throw new HttpError(503, "Não foi possível conectar ao Supabase. Verifique SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na API.");
+  }
 }
 
 export async function refreshToken(refreshToken: string) {

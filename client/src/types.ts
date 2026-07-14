@@ -75,6 +75,39 @@ export type Dashboard = {
   conversations_waiting_human: number;
 };
 
+export type MetaAdsReportRow = {
+  name: string;
+  campaign_name?: string | null;
+  adset_name?: string | null;
+  leads: number;
+  processed: number;
+  duplicates: number;
+  errors: number;
+  responses: number;
+  interested: number;
+  opt_outs: number;
+  human_needed: number;
+  response_rate: number;
+};
+
+export type MetaAdsReport = {
+  summary: Omit<MetaAdsReportRow, "name" | "campaign_name" | "adset_name">;
+  campaigns: MetaAdsReportRow[];
+  adsets: MetaAdsReportRow[];
+  ads: MetaAdsReportRow[];
+  recent_leads: Array<{
+    id: string;
+    name: string;
+    phone: string;
+    company?: string | null;
+    status: string;
+    campaign_name?: string | null;
+    adset_name?: string | null;
+    ad_name?: string | null;
+    created_at: string;
+  }>;
+};
+
 export type IntegrationLog = {
   id: string;
   event_type: string;

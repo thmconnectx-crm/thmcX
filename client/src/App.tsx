@@ -36,6 +36,8 @@ import type {
   Lead,
   LeadListResponse,
   LeadSource,
+  MetaAdsReport,
+  MetaAdsReportRow,
   Message,
   SetupStatus,
   SystemCheck,
@@ -1205,6 +1207,151 @@ function AutomationsView() {
 }
 
 function ReportsView() {
+  const [report, setReport] = useState<MetaAdsReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void request<MetaAdsReport>("/reports/meta-ads")
+      .then(setReport)
+      .catch((item) => setError(item instanceof Error ? item.message : "Não foi possível carregar o relatório."));
+  }, []);
+
+  const summaryCards = report
+    ? [
+        ["Leads Meta", report.summary.leads],
+        ["Respostas", report.summary.responses],
+        ["Taxa resposta", `${report.summary.response_rate}%`],
+        ["Interessados", report.summary.interested],
+        ["Handoff humano", report.summary.human_needed],
+        ["Opt-outs", report.summary.opt_outs],
+        ["Duplicados", report.summary.duplicates],
+        ["Erros", report.summary.errors]
+      ]
+    : [];
+
+  return (
+    <section className="space-y-6">
+      <div className="panel p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="section-title">Relatórios</h2>
+            <p className="section-copy">Primeira visão de tráfego pago: atribuição de leads vindos de Meta Ads.</p>
+          </div>
+          <span className="status-badge bg-ink text-white">Meta Ads</span>
+        </div>
+      </div>
+
+      {error && <div className="panel p-4 text-sm text-ink">{error}</div>}
+
+      {!report && !error && <EmptyState title="Carregando relatório." text="Consultando leads, respostas e origens atribuídas ao Meta Ads." />}
+
+      {report && report.summary.leads === 0 && (
+        <EmptyState
+          title="Nenhum lead de Meta Ads ainda."
+          text="Quando uma fonte Meta Ads, webhook, Zapier/Make ou landing page enviar leads com origem meta/facebook/instagram, o relatório aparece aqui."
+        />
+      )}
+
+      {report && report.summary.leads > 0 && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {summaryCards.map(([label, value]) => (
+              <div key={label} className="panel p-5">
+                <p className="metric-label">{label}</p>
+                <strong className="metric-value text-2xl">{value}</strong>
+              </div>
+            ))}
+          </div>
+
+          <ReportTable title="Campanhas Meta" rows={report.campaigns} />
+          <ReportTable title="Conjuntos de anúncios" rows={report.adsets} />
+          <ReportTable title="Anúncios" rows={report.ads} />
+
+          <div className="panel overflow-hidden">
+            <div className="border-b border-line p-5">
+              <h3 className="section-title">Leads recentes de Meta Ads</h3>
+              <p className="section-copy">Últimos contatos atribuídos a campanhas, conjuntos ou anúncios da Meta.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="border-b border-line text-xs uppercase text-muted">
+                  <tr>
+                    <th className="px-5 py-3">Lead</th>
+                    <th className="px-5 py-3">Campanha</th>
+                    <th className="px-5 py-3">Conjunto</th>
+                    <th className="px-5 py-3">Anúncio</th>
+                    <th className="px-5 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.recent_leads.map((lead) => (
+                    <tr key={lead.id} className="border-b border-line last:border-0">
+                      <td className="px-5 py-4">
+                        <strong className="block">{lead.name}</strong>
+                        <span className="text-xs text-muted">{lead.company ?? lead.phone}</span>
+                      </td>
+                      <td className="px-5 py-4 text-muted">{lead.campaign_name ?? "Sem campanha"}</td>
+                      <td className="px-5 py-4 text-muted">{lead.adset_name ?? "Sem conjunto"}</td>
+                      <td className="px-5 py-4 text-muted">{lead.ad_name ?? "Sem anúncio"}</td>
+                      <td className="px-5 py-4"><StatusPill status={lead.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function ReportTable({ title, rows }: { title: string; rows: MetaAdsReportRow[] }) {
+  return (
+    <div className="panel overflow-hidden">
+      <div className="border-b border-line p-5">
+        <h3 className="section-title">{title}</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] text-left text-sm">
+          <thead className="border-b border-line text-xs uppercase text-muted">
+            <tr>
+              <th className="px-5 py-3">Nome</th>
+              <th className="px-5 py-3">Leads</th>
+              <th className="px-5 py-3">Respostas</th>
+              <th className="px-5 py-3">Taxa</th>
+              <th className="px-5 py-3">Interessados</th>
+              <th className="px-5 py-3">Handoff</th>
+              <th className="px-5 py-3">Opt-out</th>
+              <th className="px-5 py-3">Erros</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td className="px-5 py-5 text-muted" colSpan={8}>Sem dados suficientes.</td>
+              </tr>
+            )}
+            {rows.map((row) => (
+              <tr key={row.name} className="border-b border-line last:border-0">
+                <td className="px-5 py-4 font-medium">{row.name}</td>
+                <td className="px-5 py-4">{row.leads}</td>
+                <td className="px-5 py-4">{row.responses}</td>
+                <td className="px-5 py-4">{row.response_rate}%</td>
+                <td className="px-5 py-4">{row.interested}</td>
+                <td className="px-5 py-4">{row.human_needed}</td>
+                <td className="px-5 py-4">{row.opt_outs}</td>
+                <td className="px-5 py-4">{row.errors}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function LegacyReportsView() {
   return (
     <section className="space-y-6">
       <div className="panel p-6">

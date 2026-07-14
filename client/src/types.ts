@@ -88,6 +88,14 @@ export type MetaAdsReportRow = {
   opt_outs: number;
   human_needed: number;
   response_rate: number;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  cpc: number;
+  cpm: number;
+  cpl: number;
+  cost_per_interested: number;
 };
 
 export type MetaAdsReport = {

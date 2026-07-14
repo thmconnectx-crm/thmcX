@@ -1219,13 +1219,14 @@ function ReportsView() {
   const summaryCards = report
     ? [
         ["Leads Meta", report.summary.leads],
+        ["Investimento", formatCurrency(report.summary.spend)],
         ["Respostas", report.summary.responses],
         ["Taxa resposta", `${report.summary.response_rate}%`],
+        ["CPL", formatCurrency(report.summary.cpl)],
         ["Interessados", report.summary.interested],
+        ["Custo/interessado", formatCurrency(report.summary.cost_per_interested)],
         ["Handoff humano", report.summary.human_needed],
-        ["Opt-outs", report.summary.opt_outs],
-        ["Duplicados", report.summary.duplicates],
-        ["Erros", report.summary.errors]
+        ["CTR", `${report.summary.ctr}%`]
       ]
     : [];
 
@@ -1318,29 +1319,35 @@ function ReportTable({ title, rows }: { title: string; rows: MetaAdsReportRow[] 
             <tr>
               <th className="px-5 py-3">Nome</th>
               <th className="px-5 py-3">Leads</th>
+              <th className="px-5 py-3">Invest.</th>
+              <th className="px-5 py-3">CPL</th>
               <th className="px-5 py-3">Respostas</th>
               <th className="px-5 py-3">Taxa</th>
               <th className="px-5 py-3">Interessados</th>
+              <th className="px-5 py-3">Custo/int.</th>
+              <th className="px-5 py-3">CTR</th>
               <th className="px-5 py-3">Handoff</th>
-              <th className="px-5 py-3">Opt-out</th>
               <th className="px-5 py-3">Erros</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td className="px-5 py-5 text-muted" colSpan={8}>Sem dados suficientes.</td>
+                <td className="px-5 py-5 text-muted" colSpan={11}>Sem dados suficientes.</td>
               </tr>
             )}
             {rows.map((row) => (
               <tr key={row.name} className="border-b border-line last:border-0">
                 <td className="px-5 py-4 font-medium">{row.name}</td>
                 <td className="px-5 py-4">{row.leads}</td>
+                <td className="px-5 py-4">{formatCurrency(row.spend)}</td>
+                <td className="px-5 py-4">{formatCurrency(row.cpl)}</td>
                 <td className="px-5 py-4">{row.responses}</td>
                 <td className="px-5 py-4">{row.response_rate}%</td>
                 <td className="px-5 py-4">{row.interested}</td>
+                <td className="px-5 py-4">{formatCurrency(row.cost_per_interested)}</td>
+                <td className="px-5 py-4">{row.ctr}%</td>
                 <td className="px-5 py-4">{row.human_needed}</td>
-                <td className="px-5 py-4">{row.opt_outs}</td>
                 <td className="px-5 py-4">{row.errors}</td>
               </tr>
             ))}
@@ -1531,6 +1538,13 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  }).format(value);
 }
 
 function formatDateTime(value?: string) {

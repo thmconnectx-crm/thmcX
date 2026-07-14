@@ -1,4 +1,28 @@
+import { z } from "zod";
 import { supabase } from "../db.js";
+
+export const metaAdInsightSchema = z.object({
+  source_id: z.string().uuid().optional().nullable(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  level: z.enum(["campaign", "adset", "ad"]).default("campaign"),
+  campaign_id: z.string().optional().nullable(),
+  campaign_name: z.string().optional().nullable(),
+  adset_id: z.string().optional().nullable(),
+  adset_name: z.string().optional().nullable(),
+  ad_id: z.string().optional().nullable(),
+  ad_name: z.string().optional().nullable(),
+  spend: z.coerce.number().min(0).default(0),
+  impressions: z.coerce.number().int().min(0).default(0),
+  reach: z.coerce.number().int().min(0).default(0),
+  clicks: z.coerce.number().int().min(0).default(0),
+  unique_clicks: z.coerce.number().int().min(0).default(0),
+  leads: z.coerce.number().int().min(0).default(0),
+  raw_payload: z.record(z.unknown()).default({})
+});
+
+export const metaAdInsightsInputSchema = z.object({
+  insights: z.array(metaAdInsightSchema).min(1).max(500)
+});
 
 type LeadRow = {
   id: string;
@@ -37,6 +61,22 @@ type MessageRow = {
   lead_id: string;
 };
 
+type InsightRow = {
+  level: "campaign" | "adset" | "ad";
+  campaign_name?: string | null;
+  adset_name?: string | null;
+  ad_name?: string | null;
+  spend: number | string;
+  impressions: number;
+  clicks: number;
+};
+
+type InsightMetrics = {
+  spend: number;
+  impressions: number;
+  clicks: number;
+};
+
 type ReportRow = {
   name: string;
   campaign_name?: string | null;
@@ -50,27 +90,36 @@ type ReportRow = {
   opt_outs: number;
   human_needed: number;
   response_rate: number;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  cpc: number;
+  cpm: number;
+  cpl: number;
+  cost_per_interested: number;
 };
 
 export async function getMetaAdsReport(tenantId: string) {
   const sourceIds = await getMetaSourceIds(tenantId);
-  const [leads, incoming] = await Promise.all([getMetaLeads(tenantId), getMetaIncoming(tenantId, sourceIds)]);
+  const [leads, incoming, insights] = await Promise.all([getMetaLeads(tenantId), getMetaIncoming(tenantId, sourceIds), getMetaInsights(tenantId)]);
   const leadIds = leads.map((lead) => lead.id);
   const [conversations, inboundMessages] = await Promise.all([getConversations(tenantId, leadIds), getInboundMessages(tenantId, leadIds)]);
 
   const conversationByLead = new Map(conversations.map((conversation) => [conversation.lead_id, conversation]));
   const respondedLeadIds = new Set(inboundMessages.map((message) => message.lead_id));
   const incomingByGroup = groupIncoming(incoming);
+  const insightGroups = groupInsights(insights);
 
-  const summary = buildSummary(leads, incoming, conversationByLead, respondedLeadIds);
-  const campaigns = groupLeads(leads, conversationByLead, respondedLeadIds, incomingByGroup, (lead) =>
+  const summary = buildSummary(leads, incoming, conversationByLead, respondedLeadIds, insightGroups.all);
+  const campaigns = groupLeads(leads, conversationByLead, respondedLeadIds, incomingByGroup, insightGroups.campaign, (lead) =>
     lead.campaign_name ?? lead.utm_campaign ?? "Sem campanha"
   );
-  const adsets = groupLeads(leads, conversationByLead, respondedLeadIds, incomingByGroup, (lead) =>
+  const adsets = groupLeads(leads, conversationByLead, respondedLeadIds, incomingByGroup, insightGroups.adset, (lead) =>
     lead.adset_name ?? "Sem conjunto"
   );
-  const ads = groupLeads(leads, conversationByLead, respondedLeadIds, incomingByGroup, (lead) =>
-    lead.ad_name ?? lead.utm_content ?? "Sem anúncio"
+  const ads = groupLeads(leads, conversationByLead, respondedLeadIds, incomingByGroup, insightGroups.ad, (lead) =>
+    lead.ad_name ?? lead.utm_content ?? "Sem anuncio"
   );
 
   return {
@@ -90,6 +139,19 @@ export async function getMetaAdsReport(tenantId: string) {
       created_at: lead.created_at
     }))
   };
+}
+
+export async function saveMetaAdInsights(tenantId: string, input: z.infer<typeof metaAdInsightsInputSchema>) {
+  const parsed = metaAdInsightsInputSchema.parse(input);
+  const rows = parsed.insights.map((item) => ({
+    ...item,
+    tenant_id: tenantId,
+    updated_at: new Date().toISOString()
+  }));
+
+  const { data, error } = await supabase.from("meta_ad_insights").insert(rows).select("id");
+  if (error) throw new Error(error.message);
+  return { imported: data?.length ?? 0 };
 }
 
 async function getMetaSourceIds(tenantId: string) {
@@ -123,6 +185,20 @@ async function getMetaIncoming(tenantId: string, sourceIds: string[]): Promise<I
   return (data ?? []) as IncomingRow[];
 }
 
+async function getMetaInsights(tenantId: string): Promise<InsightRow[]> {
+  const { data, error } = await supabase
+    .from("meta_ad_insights")
+    .select("level,campaign_name,adset_name,ad_name,spend,impressions,clicks")
+    .eq("tenant_id", tenantId)
+    .order("date", { ascending: false })
+    .limit(10000);
+  if (error) {
+    if (error.message.toLowerCase().includes("meta_ad_insights")) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as InsightRow[];
+}
+
 async function getConversations(tenantId: string, leadIds: string[]): Promise<ConversationRow[]> {
   if (!leadIds.length) return [];
   const { data, error } = await supabase
@@ -150,7 +226,8 @@ function buildSummary(
   leads: LeadRow[],
   incoming: IncomingRow[],
   conversationByLead: Map<string, ConversationRow>,
-  respondedLeadIds: Set<string>
+  respondedLeadIds: Set<string>,
+  insightTotals: InsightMetrics
 ) {
   const interested = leads.filter((lead) => isInterested(lead, conversationByLead.get(lead.id))).length;
   const humanNeeded = leads.filter((lead) => conversationByLead.get(lead.id)?.human_needed).length;
@@ -168,7 +245,8 @@ function buildSummary(
     response_rate: rate(responses, leads.length),
     interested,
     opt_outs: leads.filter((lead) => lead.opt_out).length,
-    human_needed: humanNeeded
+    human_needed: humanNeeded,
+    ...calculatedMediaMetrics(insightTotals, leads.length, interested)
   };
 }
 
@@ -177,6 +255,7 @@ function groupLeads(
   conversationByLead: Map<string, ConversationRow>,
   respondedLeadIds: Set<string>,
   incomingByGroup: Map<string, { processed: number; duplicates: number; errors: number }>,
+  insightByGroup: Map<string, InsightMetrics>,
   getName: (lead: LeadRow) => string
 ) {
   const rows = new Map<string, ReportRow>();
@@ -194,10 +273,12 @@ function groupLeads(
 
   for (const row of rows.values()) {
     const incoming = incomingByGroup.get(row.name);
+    const insight = insightByGroup.get(row.name) ?? emptyInsightMetrics();
     row.processed = incoming?.processed ?? 0;
     row.duplicates = incoming?.duplicates ?? 0;
     row.errors = incoming?.errors ?? 0;
     row.response_rate = rate(row.responses, row.leads);
+    Object.assign(row, calculatedMediaMetrics(insight, row.leads, row.interested));
   }
 
   return Array.from(rows.values()).sort((a, b) => b.leads - a.leads);
@@ -217,6 +298,48 @@ function groupIncoming(incoming: IncomingRow[]) {
   return groups;
 }
 
+function groupInsights(insights: InsightRow[]) {
+  const all = emptyInsightMetrics();
+  const campaign = new Map<string, InsightMetrics>();
+  const adset = new Map<string, InsightMetrics>();
+  const ad = new Map<string, InsightMetrics>();
+
+  for (const insight of insights) {
+    addInsight(all, insight);
+    const map = insight.level === "ad" ? ad : insight.level === "adset" ? adset : campaign;
+    const key = insight.level === "ad" ? insight.ad_name : insight.level === "adset" ? insight.adset_name : insight.campaign_name;
+    if (!key) continue;
+    const current = map.get(key) ?? emptyInsightMetrics();
+    addInsight(current, insight);
+    map.set(key, current);
+  }
+
+  return { all, campaign, adset, ad };
+}
+
+function addInsight(metrics: InsightMetrics, insight: InsightRow) {
+  metrics.spend += Number(insight.spend ?? 0);
+  metrics.impressions += Number(insight.impressions ?? 0);
+  metrics.clicks += Number(insight.clicks ?? 0);
+}
+
+function emptyInsightMetrics(): InsightMetrics {
+  return { spend: 0, impressions: 0, clicks: 0 };
+}
+
+function calculatedMediaMetrics(metrics: InsightMetrics, leads: number, interested: number) {
+  return {
+    spend: roundMoney(metrics.spend),
+    impressions: metrics.impressions,
+    clicks: metrics.clicks,
+    ctr: rate(metrics.clicks, metrics.impressions),
+    cpc: ratioMoney(metrics.spend, metrics.clicks),
+    cpm: metrics.impressions > 0 ? roundMoney((metrics.spend / metrics.impressions) * 1000) : 0,
+    cpl: ratioMoney(metrics.spend, leads),
+    cost_per_interested: ratioMoney(metrics.spend, interested)
+  };
+}
+
 function emptyRow(name: string, lead: LeadRow): ReportRow {
   return {
     name,
@@ -230,7 +353,15 @@ function emptyRow(name: string, lead: LeadRow): ReportRow {
     interested: 0,
     opt_outs: 0,
     human_needed: 0,
-    response_rate: 0
+    response_rate: 0,
+    spend: 0,
+    impressions: 0,
+    clicks: 0,
+    ctr: 0,
+    cpc: 0,
+    cpm: 0,
+    cpl: 0,
+    cost_per_interested: 0
   };
 }
 
@@ -240,4 +371,12 @@ function isInterested(lead: LeadRow, conversation?: ConversationRow) {
 
 function rate(part: number, total: number) {
   return total > 0 ? Number(((part / total) * 100).toFixed(2)) : 0;
+}
+
+function ratioMoney(total: number, count: number) {
+  return count > 0 ? roundMoney(total / count) : 0;
+}
+
+function roundMoney(value: number) {
+  return Number(value.toFixed(2));
 }

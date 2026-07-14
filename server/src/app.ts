@@ -22,6 +22,7 @@ import webhookRoutes from "./routes/webhooks.routes.js";
 export const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
+app.get("/health", (_req, res) => res.json({ status: "ok", ts: new Date().toISOString() }));
 
 const defaultLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -69,8 +70,6 @@ app.use(
 );
 morgan.token("safe-url", (req) => sanitizeUrl((req as Request).originalUrl ?? req.url ?? ""));
 app.use(morgan(":method :safe-url :status :response-time ms - :res[content-length]"));
-
-app.get("/health", (_req, res) => res.json({ status: "ok", ts: new Date().toISOString() }));
 app.use("/auth", restrictedLimiter, authRoutes);
 app.use("/webhooks", webhookRoutes);
 app.use("/public", restrictedLimiter, publicRoutes);

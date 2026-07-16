@@ -121,6 +121,7 @@ export type ProspectingSearch = {
   keyword: string;
   city?: string | null;
   status: string;
+  filters?: Record<string, unknown>;
   results_count: number;
   error_message?: string | null;
   created_at: string;
@@ -129,6 +130,8 @@ export type ProspectingSearch = {
 export type ProspectingCompany = {
   id: string;
   search_id?: string | null;
+  source_provider: "osm" | "google_places" | string;
+  external_id: string;
   google_place_id?: string | null;
   name: string;
   phone?: string | null;

@@ -30,7 +30,8 @@ const baseEnvSchema = z.object({
   OPENAI_MODEL: text("gpt-4.1-mini"),
   GEMINI_API_KEY: text(),
   GEMINI_MODEL: text("gemini-3.5-flash"),
-  GOOGLE_PLACES_API_KEY: text()
+  GOOGLE_PLACES_API_KEY: text(),
+  OVERPASS_API_URL: text("https://overpass-api.de/api/interpreter")
 });
 
 const requiredInProduction = [

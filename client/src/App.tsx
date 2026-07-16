@@ -1,4 +1,4 @@
-import {
+﻿import {
   Activity,
   Bot,
   CheckCircle2,
@@ -480,7 +480,7 @@ function LeadsView() {
 function ProspectingView() {
   const [companies, setCompanies] = useState<ProspectingCompany[]>([]);
   const [searches, setSearches] = useState<ProspectingSearch[]>([]);
-  const [form, setForm] = useState({ keyword: "", city: "", max_results: 10 });
+  const [form, setForm] = useState({ keyword: "", city: "", max_results: 10, source_provider: "osm" });
   const [websiteFilter, setWebsiteFilter] = useState<"all" | "yes" | "no">("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -509,10 +509,11 @@ function ProspectingView() {
         body: JSON.stringify({
           keyword: form.keyword,
           city: form.city || null,
+          source_provider: form.source_provider,
           max_results: form.max_results
         })
       });
-      setForm({ keyword: "", city: "", max_results: 10 });
+      setForm({ keyword: "", city: "", max_results: 10, source_provider: "osm" });
       load();
     } catch (item) {
       setError(item instanceof Error ? item.message : "Não foi possível buscar empresas.");
@@ -542,13 +543,13 @@ function ProspectingView() {
           <div>
             <h2 className="section-title">Busca de empresas</h2>
             <p className="section-copy">
-              Encontre empresas por nicho e cidade usando Google Places. Prospects convertidos entram como opt-in desconhecido até validação manual.
+              Encontre empresas por nicho e cidade usando OpenStreetMap no modo gratuito. Prospects convertidos entram como opt-in desconhecido até validação manual.
             </p>
           </div>
-          <span className="status-badge bg-ink text-white">Google Places</span>
+          <span className="status-badge bg-ink text-white">{form.source_provider === "osm" ? "OpenStreetMap" : "Google Places"}</span>
         </div>
 
-        <form className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_1fr_160px_auto]" onSubmit={runSearch}>
+        <form className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_1fr_180px_160px_auto]" onSubmit={runSearch}>
           <Field label="Nicho ou palavra-chave">
             <input
               className="input"
@@ -564,7 +565,18 @@ function ProspectingView() {
               placeholder="Ex.: Sinop"
               value={form.city}
               onChange={(event) => setForm({ ...form, city: event.target.value })}
+              required={form.source_provider === "osm"}
             />
+          </Field>
+          <Field label="Fonte">
+            <select
+              className="input"
+              value={form.source_provider}
+              onChange={(event) => setForm({ ...form, source_provider: event.target.value })}
+            >
+              <option value="osm">OpenStreetMap gratuito</option>
+              <option value="google_places">Google Places premium</option>
+            </select>
           </Field>
           <Field label="Resultados">
             <input
@@ -622,7 +634,7 @@ function ProspectingView() {
       {companies.length === 0 ? (
         <EmptyState
           title="Nenhum prospect encontrado ainda."
-          text="Faça uma busca por nicho e cidade. Para busca real, configure GOOGLE_PLACES_API_KEY no ambiente da API."
+          text="Faça uma busca por nicho e cidade. O modo OpenStreetMap funciona sem chave paga, mas pode trazer menos telefone e site que o Google Places."
         />
       ) : (
         <div className="panel overflow-hidden">
@@ -662,6 +674,7 @@ function ProspectingView() {
                     </td>
                     <td className="px-5 py-4 text-muted">
                       {company.rating ? `${company.rating} (${company.reviews_count})` : "Sem nota"}
+                      <span className="mt-1 block text-xs">{company.source_provider === "osm" ? "OpenStreetMap" : "Google Places"}</span>
                     </td>
                     <td className="px-5 py-4"><StatusPill status={company.status} /></td>
                     <td className="px-5 py-4">
@@ -692,7 +705,7 @@ function ProspectingView() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <strong className="block">{search.keyword}</strong>
-                    <span className="text-xs text-muted">{search.city ?? "Sem cidade"} · {formatDate(search.created_at)}</span>
+                    <span className="text-xs text-muted">{search.city ?? "Sem cidade"} · {String(search.filters?.source_provider ?? "osm") === "osm" ? "OpenStreetMap" : "Google Places"} · {formatDate(search.created_at)}</span>
                   </div>
                   <StatusPill status={search.status} />
                 </div>

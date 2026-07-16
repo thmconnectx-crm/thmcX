@@ -15,9 +15,19 @@ type GooglePlace = {
   businessStatus?: string;
 };
 
+type OsmElement = {
+  type: "node" | "way" | "relation";
+  id: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat?: number; lon?: number };
+  tags?: Record<string, string>;
+};
+
 export const prospectingSearchSchema = z.object({
   keyword: z.string().min(2),
   city: z.string().optional().nullable(),
+  source_provider: z.enum(["osm", "google_places"]).default("osm"),
   max_results: z.coerce.number().int().min(1).max(20).default(10),
   filters: z
     .object({
@@ -28,6 +38,7 @@ export const prospectingSearchSchema = z.object({
 
 export const prospectingCompanyFiltersSchema = z.object({
   search_id: z.string().uuid().optional(),
+  source_provider: z.enum(["osm", "google_places"]).optional(),
   city: z.string().optional(),
   status: z.string().optional(),
   q: z.string().optional(),
@@ -47,13 +58,13 @@ export async function searchProspects(tenantId: string, input: z.infer<typeof pr
         keyword: payload.keyword,
         city: payload.city ?? null,
         status: "running",
-        filters: payload.filters
+        filters: { ...payload.filters, source_provider: payload.source_provider }
       })
       .select("*")
       .single()
   );
 
-  if (!env.GOOGLE_PLACES_API_KEY) {
+  if (payload.source_provider === "google_places" && !env.GOOGLE_PLACES_API_KEY) {
     const updatedSearch = await updateSearch(search.id, tenantId, {
       status: "missing_api_key",
       error_message: "Configure GOOGLE_PLACES_API_KEY no ambiente da API para buscar empresas no Google Places."
@@ -62,10 +73,16 @@ export async function searchProspects(tenantId: string, input: z.infer<typeof pr
   }
 
   try {
-    const places = await fetchGooglePlaces(payload.keyword, payload.city ?? "", payload.max_results);
-    const companies = places
-      .filter((place) => Boolean(place.id))
-      .map((place) => normalizePlace(tenantId, search.id, payload.keyword, payload.city ?? null, place))
+    const rawCompanies =
+      payload.source_provider === "google_places"
+        ? (await fetchGooglePlaces(payload.keyword, payload.city ?? "", payload.max_results))
+            .filter((place) => Boolean(place.id))
+            .map((place) => normalizeGooglePlace(tenantId, search.id, payload.keyword, payload.city ?? null, place))
+        : (await fetchOsmCompanies(payload.keyword, payload.city ?? "", payload.max_results)).map((element) =>
+            normalizeOsmElement(tenantId, search.id, payload.keyword, payload.city ?? null, element)
+          );
+
+    const companies = rawCompanies
       .filter((company) =>
         typeof payload.filters.has_website === "boolean" ? company.has_website === payload.filters.has_website : true
       );
@@ -74,7 +91,7 @@ export async function searchProspects(tenantId: string, input: z.infer<typeof pr
       ? (assertDb(
           await supabase
             .from("prospecting_companies")
-            .upsert(companies, { onConflict: "tenant_id,google_place_id" })
+            .upsert(companies, { onConflict: "tenant_id,source_provider,external_id" })
             .select("*")
         ) ?? [])
       : [];
@@ -89,7 +106,7 @@ export async function searchProspects(tenantId: string, input: z.infer<typeof pr
   } catch (error) {
     const updatedSearch = await updateSearch(search.id, tenantId, {
       status: "error",
-      error_message: error instanceof Error ? error.message : "Nao foi possivel consultar o Google Places."
+      error_message: error instanceof Error ? error.message : "Nao foi possivel consultar a fonte de prospeccao."
     });
     return { search: updatedSearch, companies: [] };
   }
@@ -120,6 +137,7 @@ export async function listProspectingCompanies(
     .limit(100);
 
   if (filters.search_id) query = query.eq("search_id", filters.search_id);
+  if (filters.source_provider) query = query.eq("source_provider", filters.source_provider);
   if (filters.city) query = query.ilike("city", `%${filters.city}%`);
   if (filters.status) query = query.eq("status", filters.status);
   if (typeof filters.has_website === "boolean") query = query.eq("has_website", filters.has_website);
@@ -149,8 +167,8 @@ export async function convertProspectingCompanyToLead(tenantId: string, companyI
     company: company.name,
     city: company.city,
     niche: company.niche,
-    source: "Google Places",
-    source_type: "prospecting_google_places",
+    source: company.source_provider === "google_places" ? "Google Places" : "OpenStreetMap",
+    source_type: `prospecting_${company.source_provider}`,
     status: "prospect_frio",
     tags,
     observations: buildLeadObservation(company.website, company.address),
@@ -201,11 +219,35 @@ async function fetchGooglePlaces(keyword: string, city: string, maxResults: numb
   return payload.places ?? [];
 }
 
-function normalizePlace(tenantId: string, searchId: string, keyword: string, city: string | null, place: GooglePlace) {
+async function fetchOsmCompanies(keyword: string, city: string, maxResults: number) {
+  if (!city.trim()) throw new Error("Informe uma cidade para buscar empresas pelo OpenStreetMap.");
+
+  const query = buildOverpassQuery(keyword, city, maxResults);
+  const response = await fetch(env.OVERPASS_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      "User-Agent": "ThM ConnectX prospecting MVP"
+    },
+    body: new URLSearchParams({ data: query })
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`OpenStreetMap/Overpass retornou erro ${response.status}${detail ? `: ${detail.slice(0, 220)}` : ""}`);
+  }
+
+  const payload = (await response.json()) as { elements?: OsmElement[] };
+  return (payload.elements ?? []).filter((element) => Boolean(element.tags?.name)).slice(0, maxResults);
+}
+
+function normalizeGooglePlace(tenantId: string, searchId: string, keyword: string, city: string | null, place: GooglePlace) {
   const website = place.websiteUri ?? null;
   return {
     tenant_id: tenantId,
     search_id: searchId,
+    source_provider: "google_places",
+    external_id: place.id,
     google_place_id: place.id,
     name: place.displayName?.text ?? "Empresa sem nome",
     phone: place.nationalPhoneNumber ?? place.internationalPhoneNumber ?? null,
@@ -220,6 +262,36 @@ function normalizePlace(tenantId: string, searchId: string, keyword: string, cit
     status: "prospect",
     tags: uniqueTags(["google_places", slugify(keyword), city ? slugify(city) : ""]),
     raw_payload: place,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function normalizeOsmElement(tenantId: string, searchId: string, keyword: string, city: string | null, element: OsmElement) {
+  const tags = element.tags ?? {};
+  const website = tags.website ?? tags["contact:website"] ?? tags.url ?? null;
+  const phone = tags.phone ?? tags["contact:phone"] ?? tags.mobile ?? tags["contact:mobile"] ?? null;
+  const address = formatOsmAddress(tags);
+  const externalId = `${element.type}:${element.id}`;
+
+  return {
+    tenant_id: tenantId,
+    search_id: searchId,
+    source_provider: "osm",
+    external_id: externalId,
+    google_place_id: null,
+    name: tags.name ?? "Empresa sem nome",
+    phone,
+    website,
+    address,
+    city: city ?? tags["addr:city"] ?? null,
+    niche: keyword,
+    rating: null,
+    reviews_count: 0,
+    business_status: tags.opening_hours ? "OPERATIONAL" : null,
+    has_website: Boolean(website),
+    status: "prospect",
+    tags: uniqueTags(["openstreetmap", slugify(keyword), city ? slugify(city) : "", tags.shop ?? "", tags.amenity ?? ""]),
+    raw_payload: element,
     updated_at: new Date().toISOString()
   };
 }
@@ -257,9 +329,90 @@ function uniqueTags(tags: string[]) {
 }
 
 function buildLeadObservation(website?: string | null, address?: string | null) {
-  const details = ["Origem: pesquisa no Google Places."];
+  const details = ["Origem: pesquisa de prospeccao."];
   if (website) details.push(`Site encontrado: ${website}.`);
   if (address) details.push(`Endereco: ${address}.`);
   details.push("Opt-in nao confirmado. Validar permissao antes de campanha ativa.");
   return details.join(" ");
+}
+
+function buildOverpassQuery(keyword: string, city: string, maxResults: number) {
+  const nameRegex = escapeOverpassRegex(keyword);
+  const filters = osmFiltersForKeyword(keyword);
+  const filterQueries = filters
+    .map(
+      (filter) => `
+  node${filter}(area.searchArea);
+  way${filter}(area.searchArea);
+  relation${filter}(area.searchArea);`
+    )
+    .join("\n");
+
+  return `
+[out:json][timeout:25];
+area["name"="${escapeOverpassString(city)}"]["boundary"="administrative"]->.searchArea;
+(
+  node["name"~"${nameRegex}",i](area.searchArea);
+  way["name"~"${nameRegex}",i](area.searchArea);
+  relation["name"~"${nameRegex}",i](area.searchArea);
+${filterQueries}
+);
+out center tags ${maxResults};
+`.trim();
+}
+
+function osmFiltersForKeyword(keyword: string) {
+  const normalized = slugify(keyword);
+  const filters = new Set<string>();
+
+  if (/(barbear|cabelo|salao|salao_de_beleza|beleza|estetica|designer_de_sobrancelha)/.test(normalized)) {
+    filters.add('["shop"~"hairdresser|beauty",i]');
+    filters.add('["amenity"~"beauty_salon",i]');
+  }
+  if (/(restaurante|lanchonete|pizzaria|hamburguer|food|comida)/.test(normalized)) {
+    filters.add('["amenity"~"restaurant|fast_food|cafe|bar",i]');
+  }
+  if (/(clinica|medico|dentista|odontologia|saude|fisioterapia)/.test(normalized)) {
+    filters.add('["amenity"~"clinic|doctors|dentist|hospital",i]');
+    filters.add('["healthcare"~"clinic|doctor|dentist|physiotherapist",i]');
+  }
+  if (/(hotel|pousada|hospedagem)/.test(normalized)) {
+    filters.add('["tourism"~"hotel|guest_house|hostel",i]');
+  }
+  if (/(academia|crossfit|pilates|fitness)/.test(normalized)) {
+    filters.add('["leisure"~"fitness_centre|sports_centre",i]');
+    filters.add('["sport"~"fitness|pilates",i]');
+  }
+  if (/(pet|veterinaria|banho|tosa)/.test(normalized)) {
+    filters.add('["amenity"~"veterinary",i]');
+    filters.add('["shop"~"pet",i]');
+  }
+  if (filters.size === 0) {
+    filters.add('["shop"]');
+    filters.add('["amenity"]');
+    filters.add('["office"]');
+  }
+
+  return Array.from(filters);
+}
+
+function escapeOverpassString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function escapeOverpassRegex(value: string) {
+  return escapeOverpassString(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+}
+
+function formatOsmAddress(tags: Record<string, string>) {
+  const street = tags["addr:street"];
+  const number = tags["addr:housenumber"];
+  const suburb = tags["addr:suburb"] ?? tags["addr:neighbourhood"];
+  const city = tags["addr:city"];
+  const parts = [
+    street && number ? `${street}, ${number}` : street ?? number,
+    suburb,
+    city
+  ].filter(Boolean);
+  return parts.length ? parts.join(" - ") : null;
 }

@@ -15,6 +15,7 @@ import {
   Play,
   PlugZap,
   RefreshCw,
+  Search,
   Send,
   Settings,
   ShieldOff,
@@ -39,6 +40,9 @@ import type {
   MetaAdsReport,
   MetaAdsReportRow,
   Message,
+  ProspectingCompany,
+  ProspectingSearch,
+  ProspectingSearchResponse,
   SetupStatus,
   SystemCheck,
   WhatsAppTemplate
@@ -47,6 +51,7 @@ import type {
 type Tab =
   | "dashboard"
   | "leads"
+  | "prospecting"
   | "campaigns"
   | "conversations"
   | "sends"
@@ -59,6 +64,7 @@ type Tab =
 const menu: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "leads", label: "Leads", icon: Users },
+  { id: "prospecting", label: "Prospecção", icon: Search },
   { id: "campaigns", label: "Campanhas", icon: Megaphone },
   { id: "conversations", label: "Conversas", icon: MessageSquare },
   { id: "sends", label: "Disparos", icon: Send },
@@ -75,6 +81,7 @@ const footerMenu = menu.filter((item) => item.id === "settings");
 const tabDescriptions: Record<Tab, string> = {
   dashboard: "Acompanhe a operação e veja o próximo passo recomendado.",
   leads: "Gerencie contatos, origens e informações comerciais em um só lugar.",
+  prospecting: "Pesquise empresas por nicho e cidade antes de converter oportunidades em leads.",
   campaigns: "Crie campanhas controladas com templates oficiais e opt-in autorizado.",
   conversations: "Acompanhe atendimentos, IA e passagem para humano.",
   sends: "Monitore a fila de disparos e os registros de envio.",
@@ -200,6 +207,7 @@ export function App() {
         <main className="px-5 py-8 lg:px-10">
           {tab === "dashboard" && <DashboardView />}
           {tab === "leads" && <LeadsView />}
+          {tab === "prospecting" && <ProspectingView />}
           {tab === "campaigns" && <CampaignsView />}
           {tab === "conversations" && <ConversationsView />}
           {tab === "sends" && <SendsView />}
@@ -208,7 +216,7 @@ export function App() {
           {tab === "automations" && <AutomationsView />}
           {tab === "reports" && <ReportsView />}
           {tab === "settings" && <SettingsView />}
-          {!["dashboard", "leads", "campaigns", "conversations", "sends", "connections", "templates", "automations", "reports", "settings"].includes(tab) && (
+          {!["dashboard", "leads", "prospecting", "campaigns", "conversations", "sends", "connections", "templates", "automations", "reports", "settings"].includes(tab) && (
             <PlaceholderView title={menu.find((item) => item.id === tab)?.label ?? "Módulo"} />
           )}
         </main>
@@ -463,6 +471,236 @@ function LeadsView() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ProspectingView() {
+  const [companies, setCompanies] = useState<ProspectingCompany[]>([]);
+  const [searches, setSearches] = useState<ProspectingSearch[]>([]);
+  const [form, setForm] = useState({ keyword: "", city: "", max_results: 10 });
+  const [websiteFilter, setWebsiteFilter] = useState<"all" | "yes" | "no">("all");
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => {
+    const params = new URLSearchParams();
+    if (websiteFilter === "yes") params.set("has_website", "true");
+    if (websiteFilter === "no") params.set("has_website", "false");
+    if (query.trim()) params.set("q", query.trim());
+    void request<ProspectingCompany[]>(`/prospecting/companies${params.size ? `?${params.toString()}` : ""}`)
+      .then(setCompanies)
+      .catch((item) => setError(item instanceof Error ? item.message : "Não foi possível carregar prospects."));
+    void request<ProspectingSearch[]>("/prospecting/searches").then(setSearches).catch(() => undefined);
+  };
+
+  useEffect(load, [websiteFilter]);
+
+  async function runSearch(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      await request<ProspectingSearchResponse>("/prospecting/search", {
+        method: "POST",
+        body: JSON.stringify({
+          keyword: form.keyword,
+          city: form.city || null,
+          max_results: form.max_results
+        })
+      });
+      setForm({ keyword: "", city: "", max_results: 10 });
+      load();
+    } catch (item) {
+      setError(item instanceof Error ? item.message : "Não foi possível buscar empresas.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function convertToLead(companyId: string) {
+    setError(null);
+    try {
+      await request(`/prospecting/companies/${companyId}/convert-to-lead`, { method: "POST" });
+      load();
+    } catch (item) {
+      setError(item instanceof Error ? item.message : "Não foi possível converter em lead.");
+    }
+  }
+
+  const withWebsite = companies.filter((company) => company.has_website).length;
+  const withoutWebsite = companies.length - withWebsite;
+  const converted = companies.filter((company) => company.status === "converted").length;
+
+  return (
+    <section className="space-y-6">
+      <div className="panel p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="section-title">Busca de empresas</h2>
+            <p className="section-copy">
+              Encontre empresas por nicho e cidade usando Google Places. Prospects convertidos entram como opt-in desconhecido até validação manual.
+            </p>
+          </div>
+          <span className="status-badge bg-ink text-white">Google Places</span>
+        </div>
+
+        <form className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_1fr_160px_auto]" onSubmit={runSearch}>
+          <Field label="Nicho ou palavra-chave">
+            <input
+              className="input"
+              placeholder="Ex.: barbearia, clínica estética"
+              value={form.keyword}
+              onChange={(event) => setForm({ ...form, keyword: event.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Cidade">
+            <input
+              className="input"
+              placeholder="Ex.: Sinop"
+              value={form.city}
+              onChange={(event) => setForm({ ...form, city: event.target.value })}
+            />
+          </Field>
+          <Field label="Resultados">
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={20}
+              value={form.max_results}
+              onChange={(event) => setForm({ ...form, max_results: Number(event.target.value) })}
+            />
+          </Field>
+          <button className="btn-primary self-end" disabled={loading}>
+            <Search size={16} />
+            {loading ? "Buscando" : "Buscar"}
+          </button>
+        </form>
+      </div>
+
+      {error && <div className="panel p-4 text-sm text-ink">{error}</div>}
+
+      <div className="grid gap-3 md:grid-cols-4">
+        {[
+          ["Prospects", companies.length],
+          ["Com site", withWebsite],
+          ["Sem site", withoutWebsite],
+          ["Convertidos", converted]
+        ].map(([label, value]) => (
+          <div key={label} className="panel p-5">
+            <p className="metric-label">{label}</p>
+            <strong className="metric-value text-2xl">{value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div className="panel p-5">
+        <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
+          <input
+            className="input"
+            placeholder="Filtrar pelo nome da empresa"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <select className="input" value={websiteFilter} onChange={(event) => setWebsiteFilter(event.target.value as "all" | "yes" | "no")}>
+            <option value="all">Todos</option>
+            <option value="yes">Somente com site</option>
+            <option value="no">Somente sem site</option>
+          </select>
+          <button className="btn-secondary" onClick={load}>
+            <RefreshCw size={16} />
+            Atualizar
+          </button>
+        </div>
+      </div>
+
+      {companies.length === 0 ? (
+        <EmptyState
+          title="Nenhum prospect encontrado ainda."
+          text="Faça uma busca por nicho e cidade. Para busca real, configure GOOGLE_PLACES_API_KEY no ambiente da API."
+        />
+      ) : (
+        <div className="panel overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="border-b border-line text-xs uppercase text-muted">
+                <tr>
+                  <th className="px-5 py-3">Empresa</th>
+                  <th className="px-5 py-3">Telefone</th>
+                  <th className="px-5 py-3">Site</th>
+                  <th className="px-5 py-3">Cidade/Nicho</th>
+                  <th className="px-5 py-3">Avaliação</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map((company) => (
+                  <tr key={company.id} className="border-b border-line last:border-0">
+                    <td className="px-5 py-4">
+                      <strong className="block">{company.name}</strong>
+                      <span className="line-clamp-1 text-xs text-muted">{company.address ?? "Endereço não informado"}</span>
+                    </td>
+                    <td className="px-5 py-4 text-muted">{company.phone ?? "Sem telefone"}</td>
+                    <td className="px-5 py-4">
+                      {company.website ? (
+                        <a className="font-medium text-ink underline decoration-line underline-offset-4" href={company.website} target="_blank" rel="noreferrer">
+                          Abrir site
+                        </a>
+                      ) : (
+                        <span className="text-muted">Sem site</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-muted">
+                      <span className="block">{company.city ?? "Sem cidade"}</span>
+                      <span className="text-xs">{company.niche ?? "Sem nicho"}</span>
+                    </td>
+                    <td className="px-5 py-4 text-muted">
+                      {company.rating ? `${company.rating} (${company.reviews_count})` : "Sem nota"}
+                    </td>
+                    <td className="px-5 py-4"><StatusPill status={company.status} /></td>
+                    <td className="px-5 py-4">
+                      <button
+                        className="btn-secondary"
+                        disabled={company.status === "converted"}
+                        onClick={() => convertToLead(company.id)}
+                      >
+                        {company.status === "converted" ? "Convertido" : "Converter em lead"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="panel p-6">
+        <h3 className="section-title">Buscas recentes</h3>
+        {searches.length === 0 ? (
+          <p className="section-copy mt-2">As buscas realizadas aparecerão aqui.</p>
+        ) : (
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            {searches.slice(0, 6).map((search) => (
+              <div key={search.id} className="rounded-xl border border-line bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <strong className="block">{search.keyword}</strong>
+                    <span className="text-xs text-muted">{search.city ?? "Sem cidade"} · {formatDate(search.created_at)}</span>
+                  </div>
+                  <StatusPill status={search.status} />
+                </div>
+                <p className="mt-3 text-sm text-muted">{search.results_count} resultado(s)</p>
+                {search.error_message && <p className="mt-2 text-xs text-muted">{search.error_message}</p>}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </section>
@@ -1397,6 +1635,11 @@ function StatusPill({ status }: { status: string }) {
     prepared: "bg-wash text-muted border-line",
     error: "bg-wash text-ink border-line",
     rejected: "bg-wash text-ink border-line",
+    prospect: "bg-wash text-muted border-line",
+    converted: "bg-soft text-ink border-line",
+    running: "bg-wash text-ink border-line",
+    completed: "bg-soft text-ink border-line",
+    missing_api_key: "bg-wash text-muted border-line",
     inactive: "bg-wash text-muted border-line"
   };
   const labels: Record<string, string> = {
@@ -1407,6 +1650,11 @@ function StatusPill({ status }: { status: string }) {
     prepared: "Preparado",
     error: "Erro",
     rejected: "Rejeitado",
+    prospect: "Prospect",
+    converted: "Convertido",
+    running: "Buscando",
+    completed: "Concluído",
+    missing_api_key: "Sem chave Google",
     inactive: "Inativo"
   };
   return <span className={`status-badge ${styles[status] ?? styles.inactive}`}>{labels[status] ?? status}</span>;

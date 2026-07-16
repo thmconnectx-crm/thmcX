@@ -116,6 +116,41 @@ export type MetaAdsReport = {
   }>;
 };
 
+export type ProspectingSearch = {
+  id: string;
+  keyword: string;
+  city?: string | null;
+  status: string;
+  results_count: number;
+  error_message?: string | null;
+  created_at: string;
+};
+
+export type ProspectingCompany = {
+  id: string;
+  search_id?: string | null;
+  google_place_id?: string | null;
+  name: string;
+  phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  city?: string | null;
+  niche?: string | null;
+  rating?: number | null;
+  reviews_count: number;
+  business_status?: string | null;
+  has_website: boolean;
+  status: string;
+  tags: string[];
+  lead_id?: string | null;
+  created_at: string;
+};
+
+export type ProspectingSearchResponse = {
+  search: ProspectingSearch;
+  companies: ProspectingCompany[];
+};
+
 export type IntegrationLog = {
   id: string;
   event_type: string;

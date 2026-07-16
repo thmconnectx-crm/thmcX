@@ -29,7 +29,8 @@ const baseEnvSchema = z.object({
   OPENAI_API_KEY: text(),
   OPENAI_MODEL: text("gpt-4.1-mini"),
   GEMINI_API_KEY: text(),
-  GEMINI_MODEL: text("gemini-3.5-flash")
+  GEMINI_MODEL: text("gemini-3.5-flash"),
+  GOOGLE_PLACES_API_KEY: text()
 });
 
 const requiredInProduction = [

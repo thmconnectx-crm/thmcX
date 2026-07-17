@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { env } from "../config.js";
 import { assertDb, supabase } from "../db.js";
@@ -24,10 +25,20 @@ type OsmElement = {
   tags?: Record<string, string>;
 };
 
+type AiProspect = {
+  name?: string;
+  phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  city?: string | null;
+  source_url?: string | null;
+  notes?: string | null;
+};
+
 export const prospectingSearchSchema = z.object({
   keyword: z.string().min(2),
   city: z.string().optional().nullable(),
-  source_provider: z.enum(["osm", "google_places"]).default("osm"),
+  source_provider: z.enum(["ai_search", "osm", "google_places"]).default("ai_search"),
   max_results: z.coerce.number().int().min(1).max(20).default(10),
   filters: z
     .object({
@@ -38,7 +49,7 @@ export const prospectingSearchSchema = z.object({
 
 export const prospectingCompanyFiltersSchema = z.object({
   search_id: z.string().uuid().optional(),
-  source_provider: z.enum(["osm", "google_places"]).optional(),
+  source_provider: z.enum(["ai_search", "osm", "google_places"]).optional(),
   city: z.string().optional(),
   status: z.string().optional(),
   q: z.string().optional(),
@@ -64,6 +75,14 @@ export async function searchProspects(tenantId: string, input: z.infer<typeof pr
       .single()
   );
 
+  if (payload.source_provider === "ai_search" && !env.GEMINI_API_KEY) {
+    const updatedSearch = await updateSearch(search.id, tenantId, {
+      status: "missing_api_key",
+      error_message: "Configure GEMINI_API_KEY no ambiente da API para usar a prospeccao assistida por IA."
+    });
+    return { search: updatedSearch, companies: [] };
+  }
+
   if (payload.source_provider === "google_places" && !env.GOOGLE_PLACES_API_KEY) {
     const updatedSearch = await updateSearch(search.id, tenantId, {
       status: "missing_api_key",
@@ -74,7 +93,11 @@ export async function searchProspects(tenantId: string, input: z.infer<typeof pr
 
   try {
     const rawCompanies =
-      payload.source_provider === "google_places"
+      payload.source_provider === "ai_search"
+        ? (await fetchAiProspects(payload.keyword, payload.city ?? "", payload.max_results)).map((company) =>
+            normalizeAiProspect(tenantId, search.id, payload.keyword, payload.city ?? null, company)
+          )
+        : payload.source_provider === "google_places"
         ? (await fetchGooglePlaces(payload.keyword, payload.city ?? "", payload.max_results))
             .filter((place) => Boolean(place.id))
             .map((place) => normalizeGooglePlace(tenantId, search.id, payload.keyword, payload.city ?? null, place))
@@ -167,7 +190,12 @@ export async function convertProspectingCompanyToLead(tenantId: string, companyI
     company: company.name,
     city: company.city,
     niche: company.niche,
-    source: company.source_provider === "google_places" ? "Google Places" : "OpenStreetMap",
+    source:
+      company.source_provider === "ai_search"
+        ? "IA com busca web"
+        : company.source_provider === "google_places"
+          ? "Google Places"
+          : "OpenStreetMap",
     source_type: `prospecting_${company.source_provider}`,
     status: "prospect_frio",
     tags,
@@ -219,6 +247,30 @@ async function fetchGooglePlaces(keyword: string, city: string, maxResults: numb
   return payload.places ?? [];
 }
 
+async function fetchAiProspects(keyword: string, city: string, maxResults: number) {
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": env.GEMINI_API_KEY
+    },
+    body: JSON.stringify({
+      model: env.GEMINI_MODEL,
+      input: buildAiProspectingPrompt(keyword, city, maxResults),
+      tools: [{ type: "google_search" }]
+    })
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Gemini Search retornou erro ${response.status}${detail ? `: ${detail.slice(0, 220)}` : ""}`);
+  }
+
+  const payload = (await response.json()) as { output_text?: string; steps?: unknown[] };
+  const text = payload.output_text || extractInteractionOutputText(payload);
+  return parseAiProspects(text).slice(0, maxResults);
+}
+
 async function fetchOsmCompanies(keyword: string, city: string, maxResults: number) {
   if (!city.trim()) throw new Error("Informe uma cidade para buscar empresas pelo OpenStreetMap.");
 
@@ -239,6 +291,36 @@ async function fetchOsmCompanies(keyword: string, city: string, maxResults: numb
 
   const payload = (await response.json()) as { elements?: OsmElement[] };
   return (payload.elements ?? []).filter((element) => Boolean(element.tags?.name)).slice(0, maxResults);
+}
+
+function normalizeAiProspect(tenantId: string, searchId: string, keyword: string, city: string | null, company: AiProspect) {
+  const website = company.website || company.source_url || null;
+  const externalId = createHash("sha256")
+    .update(`${company.name ?? ""}|${company.city ?? city ?? ""}|${company.source_url ?? company.website ?? ""}`)
+    .digest("hex");
+
+  return {
+    tenant_id: tenantId,
+    search_id: searchId,
+    source_provider: "ai_search",
+    external_id: externalId,
+    google_place_id: null,
+    name: company.name ?? "Empresa sem nome",
+    phone: company.phone ?? null,
+    website,
+    address: company.address ?? null,
+    city: company.city ?? city,
+    niche: keyword,
+    rating: null,
+    reviews_count: 0,
+    business_status: "NEEDS_REVIEW",
+    has_website: Boolean(website),
+    status: "prospect",
+    tags: uniqueTags(["ia_busca_web", slugify(keyword), city ? slugify(city) : ""]),
+    notes: company.notes ?? "Prospect sugerido por IA com busca web. Validar dados antes de contato.",
+    raw_payload: company,
+    updated_at: new Date().toISOString()
+  };
 }
 
 function normalizeGooglePlace(tenantId: string, searchId: string, keyword: string, city: string | null, place: GooglePlace) {
@@ -359,6 +441,69 @@ ${filterQueries}
 );
 out center tags ${maxResults};
 `.trim();
+}
+
+function buildAiProspectingPrompt(keyword: string, city: string, maxResults: number) {
+  return `
+Pesquise na web empresas reais para prospeccao comercial.
+
+Nicho: ${keyword}
+Cidade/regiao: ${city || "Brasil"}
+Quantidade maxima: ${maxResults}
+
+Regras obrigatorias:
+- Use busca na web.
+- Nao invente empresas.
+- Retorne apenas empresas que voce encontrou em fonte publica verificavel.
+- Priorize empresas locais com site, pagina publica ou telefone.
+- Se nao encontrar telefone, use null.
+- Se nao encontrar site, use a melhor URL publica encontrada como source_url.
+- Responda somente JSON valido, sem markdown.
+
+Formato:
+{
+  "companies": [
+    {
+      "name": "Nome da empresa",
+      "phone": "telefone ou null",
+      "website": "site oficial ou null",
+      "address": "endereco ou null",
+      "city": "cidade",
+      "source_url": "url publica usada para validar",
+      "notes": "breve observacao"
+    }
+  ]
+}
+`.trim();
+}
+
+function parseAiProspects(text: string) {
+  const cleaned = text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  try {
+    const parsed = JSON.parse(cleaned) as { companies?: AiProspect[] };
+    return (parsed.companies ?? []).filter((company) => company.name && (company.source_url || company.website));
+  } catch {
+    throw new Error("A IA nao retornou JSON valido para salvar prospects. Tente uma busca mais especifica.");
+  }
+}
+
+function extractInteractionOutputText(payload: { steps?: unknown[] }) {
+  const steps = Array.isArray(payload.steps) ? payload.steps : [];
+  for (const step of steps) {
+    if (!step || typeof step !== "object" || (step as { type?: string }).type !== "model_output") continue;
+    const content = (step as { content?: unknown[] }).content;
+    if (!Array.isArray(content)) continue;
+    const block = content.find((item) => item && typeof item === "object" && (item as { type?: string }).type === "text");
+    const text = (block as { text?: string } | undefined)?.text;
+    if (text) return text;
+  }
+  return "";
 }
 
 function osmFiltersForKeyword(keyword: string) {

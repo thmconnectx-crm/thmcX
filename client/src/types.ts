@@ -1,4 +1,4 @@
-export type Lead = {
+﻿export type Lead = {
   id: string;
   name: string;
   phone: string;
@@ -130,7 +130,7 @@ export type ProspectingSearch = {
 export type ProspectingCompany = {
   id: string;
   search_id?: string | null;
-  source_provider: "osm" | "google_places" | string;
+  source_provider: "ai_search" | "osm" | "google_places" | string;
   external_id: string;
   google_place_id?: string | null;
   name: string;

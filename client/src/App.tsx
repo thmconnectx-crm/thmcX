@@ -480,7 +480,7 @@ function LeadsView() {
 function ProspectingView() {
   const [companies, setCompanies] = useState<ProspectingCompany[]>([]);
   const [searches, setSearches] = useState<ProspectingSearch[]>([]);
-  const [form, setForm] = useState({ keyword: "", city: "", max_results: 10, source_provider: "osm" });
+  const [form, setForm] = useState({ keyword: "", city: "", max_results: 10, source_provider: "ai_search" });
   const [websiteFilter, setWebsiteFilter] = useState<"all" | "yes" | "no">("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -513,7 +513,7 @@ function ProspectingView() {
           max_results: form.max_results
         })
       });
-      setForm({ keyword: "", city: "", max_results: 10, source_provider: "osm" });
+      setForm({ keyword: "", city: "", max_results: 10, source_provider: "ai_search" });
       load();
     } catch (item) {
       setError(item instanceof Error ? item.message : "Não foi possível buscar empresas.");
@@ -543,10 +543,10 @@ function ProspectingView() {
           <div>
             <h2 className="section-title">Busca de empresas</h2>
             <p className="section-copy">
-              Encontre empresas por nicho e cidade usando OpenStreetMap no modo gratuito. Prospects convertidos entram como opt-in desconhecido até validação manual.
+              Encontre empresas por nicho e cidade usando IA com busca web. Prospects convertidos entram como opt-in desconhecido até validação manual.
             </p>
           </div>
-          <span className="status-badge bg-ink text-white">{form.source_provider === "osm" ? "OpenStreetMap" : "Google Places"}</span>
+          <span className="status-badge bg-ink text-white">{prospectingProviderLabel(form.source_provider)}</span>
         </div>
 
         <form className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_1fr_180px_160px_auto]" onSubmit={runSearch}>
@@ -574,6 +574,7 @@ function ProspectingView() {
               value={form.source_provider}
               onChange={(event) => setForm({ ...form, source_provider: event.target.value })}
             >
+              <option value="ai_search">IA com busca web</option>
               <option value="osm">OpenStreetMap gratuito</option>
               <option value="google_places">Google Places premium</option>
             </select>
@@ -634,7 +635,7 @@ function ProspectingView() {
       {companies.length === 0 ? (
         <EmptyState
           title="Nenhum prospect encontrado ainda."
-          text="Faça uma busca por nicho e cidade. O modo OpenStreetMap funciona sem chave paga, mas pode trazer menos telefone e site que o Google Places."
+          text="Faça uma busca por nicho e cidade. A IA usa busca web com fontes públicas e salva os prospects para revisão manual."
         />
       ) : (
         <div className="panel overflow-hidden">
@@ -674,7 +675,7 @@ function ProspectingView() {
                     </td>
                     <td className="px-5 py-4 text-muted">
                       {company.rating ? `${company.rating} (${company.reviews_count})` : "Sem nota"}
-                      <span className="mt-1 block text-xs">{company.source_provider === "osm" ? "OpenStreetMap" : "Google Places"}</span>
+                      <span className="mt-1 block text-xs">{prospectingProviderLabel(company.source_provider)}</span>
                     </td>
                     <td className="px-5 py-4"><StatusPill status={company.status} /></td>
                     <td className="px-5 py-4">
@@ -705,7 +706,7 @@ function ProspectingView() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <strong className="block">{search.keyword}</strong>
-                    <span className="text-xs text-muted">{search.city ?? "Sem cidade"} · {String(search.filters?.source_provider ?? "osm") === "osm" ? "OpenStreetMap" : "Google Places"} · {formatDate(search.created_at)}</span>
+                    <span className="text-xs text-muted">{search.city ?? "Sem cidade"} · {prospectingProviderLabel(String(search.filters?.source_provider ?? "ai_search"))} · {formatDate(search.created_at)}</span>
                   </div>
                   <StatusPill status={search.status} />
                 </div>
@@ -1671,6 +1672,13 @@ function StatusPill({ status }: { status: string }) {
     inactive: "Inativo"
   };
   return <span className={`status-badge ${styles[status] ?? styles.inactive}`}>{labels[status] ?? status}</span>;
+}
+
+function prospectingProviderLabel(provider: string) {
+  if (provider === "ai_search") return "IA com busca web";
+  if (provider === "osm") return "OpenStreetMap";
+  if (provider === "google_places") return "Google Places";
+  return provider;
 }
 
 function statusIcon(status: SystemCheck["status"]) {

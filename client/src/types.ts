@@ -116,6 +116,29 @@ export type MetaAdsReport = {
   }>;
 };
 
+export type MarketingReportAnalysis = {
+  executive_summary: string;
+  health_score: number;
+  status: "bom" | "atencao" | "critico" | "sem_dados";
+  key_findings: string[];
+  alerts: Array<{
+    severity: "alta" | "media" | "baixa";
+    title: string;
+    description: string;
+    metric?: string;
+  }>;
+  recommendations: Array<{
+    priority: "alta" | "media" | "baixa";
+    title: string;
+    action: string;
+    expected_impact: string;
+  }>;
+  next_actions: string[];
+  generated_at: string;
+  source: "ai" | "heuristic";
+  ai_error?: string;
+};
+
 export type ProspectingSearch = {
   id: string;
   keyword: string;

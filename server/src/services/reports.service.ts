@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { supabase } from "../db.js";
+import { generateMarketingReportAnalysis, type MarketingReportAnalysis } from "./ai.service.js";
 
 export const metaAdInsightSchema = z.object({
   source_id: z.string().uuid().optional().nullable(),
@@ -139,6 +140,38 @@ export async function getMetaAdsReport(tenantId: string) {
       created_at: lead.created_at
     }))
   };
+}
+
+export async function getMetaAdsAiAnalysis(tenantId: string) {
+  const report = await getMetaAdsReport(tenantId);
+  const heuristic = buildHeuristicAnalysis(report);
+
+  if (report.summary.leads === 0) return heuristic;
+
+  try {
+    const aiAnalysis = await generateMarketingReportAnalysis({
+      summary: report.summary,
+      campaigns: report.campaigns.slice(0, 8),
+      adsets: report.adsets.slice(0, 8),
+      ads: report.ads.slice(0, 12),
+      recent_leads_count: report.recent_leads.length
+    });
+
+    return {
+      ...heuristic,
+      ...aiAnalysis,
+      key_findings: mergeLists(aiAnalysis.key_findings, heuristic.key_findings),
+      alerts: aiAnalysis.alerts.length ? aiAnalysis.alerts : heuristic.alerts,
+      recommendations: aiAnalysis.recommendations.length ? aiAnalysis.recommendations : heuristic.recommendations,
+      next_actions: mergeLists(aiAnalysis.next_actions, heuristic.next_actions).slice(0, 6),
+      source: "ai" as const
+    };
+  } catch (error) {
+    return {
+      ...heuristic,
+      ai_error: error instanceof Error ? error.message : "Não foi possível gerar análise com IA."
+    };
+  }
 }
 
 export async function saveMetaAdInsights(tenantId: string, input: z.infer<typeof metaAdInsightsInputSchema>) {
@@ -379,4 +412,142 @@ function ratioMoney(total: number, count: number) {
 
 function roundMoney(value: number) {
   return Number(value.toFixed(2));
+}
+
+function buildHeuristicAnalysis(report: Awaited<ReturnType<typeof getMetaAdsReport>>): MarketingReportAnalysis {
+  const { summary } = report;
+  const alerts: MarketingReportAnalysis["alerts"] = [];
+  const recommendations: MarketingReportAnalysis["recommendations"] = [];
+  const keyFindings: string[] = [];
+  const nextActions: string[] = [];
+
+  if (summary.leads === 0) {
+    return {
+      executive_summary: "Ainda não há leads atribuídos ao Meta Ads para analisar performance.",
+      health_score: 0,
+      status: "sem_dados",
+      key_findings: ["Nenhum lead de Meta Ads registrado até o momento."],
+      alerts: [],
+      recommendations: [
+        {
+          priority: "alta",
+          title: "Conectar origem de leads",
+          action: "Garanta que landing pages, webhook, Zapier/Make ou API pública estejam enviando campanha, conjunto e anúncio.",
+          expected_impact: "Permitir leitura real de CPL, taxa de resposta e interessados por origem."
+        }
+      ],
+      next_actions: ["Enviar um lead teste com UTM/source meta para validar atribuição."],
+      generated_at: new Date().toISOString(),
+      source: "heuristic"
+    };
+  }
+
+  keyFindings.push(`${summary.leads} lead(s) atribuídos ao Meta Ads.`);
+  keyFindings.push(`Taxa de resposta atual: ${summary.response_rate}%.`);
+  if (summary.spend > 0) keyFindings.push(`Investimento registrado: R$ ${summary.spend.toFixed(2)} com CPL de R$ ${summary.cpl.toFixed(2)}.`);
+  if (summary.interested > 0) keyFindings.push(`${summary.interested} lead(s) classificados como interessados ou com necessidade humana.`);
+
+  if (summary.response_rate < 10 && summary.leads >= 10) {
+    alerts.push({
+      severity: "alta",
+      title: "Taxa de resposta baixa",
+      description: "A campanha está gerando leads, mas poucas pessoas estão respondendo. Revise promessa, formulário, velocidade de contato e primeira mensagem.",
+      metric: "response_rate"
+    });
+    recommendations.push({
+      priority: "alta",
+      title: "Revisar abordagem inicial",
+      action: "Teste uma primeira mensagem mais direta, contextualizando o cadastro e fazendo apenas uma pergunta simples.",
+      expected_impact: "Aumentar respostas e reduzir desperdício de leads."
+    });
+    nextActions.push("Revisar template inicial e tempo entre lead recebido e primeiro contato.");
+  }
+
+  if (summary.opt_outs > 0 && rate(summary.opt_outs, summary.leads) >= 5) {
+    alerts.push({
+      severity: "media",
+      title: "Opt-outs acima do ideal",
+      description: "Há sinais de desalinhamento entre anúncio, consentimento e abordagem no WhatsApp.",
+      metric: "opt_outs"
+    });
+    recommendations.push({
+      priority: "media",
+      title: "Ajustar expectativa no anúncio/formulário",
+      action: "Deixe claro no formulário que o contato será feito pelo WhatsApp e alinhe a mensagem inicial com a oferta prometida.",
+      expected_impact: "Reduzir bloqueios e melhorar qualidade percebida."
+    });
+  }
+
+  if (summary.errors > 0) {
+    alerts.push({
+      severity: "media",
+      title: "Erros no processamento de leads",
+      description: "Existem leads de entrada com erro. Isso pode afetar atribuição e atendimento.",
+      metric: "errors"
+    });
+    nextActions.push("Abrir logs de integrações e corrigir payloads com erro.");
+  }
+
+  const weakCampaign = report.campaigns.find((campaign) => campaign.leads >= 5 && campaign.response_rate < summary.response_rate);
+  if (weakCampaign) {
+    recommendations.push({
+      priority: "media",
+      title: `Otimizar campanha ${weakCampaign.name}`,
+      action: "Compare criativo, público e promessa com as campanhas de maior taxa de resposta antes de aumentar verba.",
+      expected_impact: "Realocar investimento para campanhas com melhor sinal comercial."
+    });
+  }
+
+  if (summary.human_needed > 0) {
+    nextActions.push("Priorizar conversas com handoff humano para tentar conversão enquanto o lead ainda está quente.");
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push({
+      priority: "baixa",
+      title: "Acumular mais dados antes de grandes mudanças",
+      action: "Mantenha a campanha rodando até ter volume suficiente por campanha/conjunto/anúncio.",
+      expected_impact: "Evitar decisões precipitadas com amostra pequena."
+    });
+  }
+
+  const healthScore = calculateHealthScore(summary);
+
+  return {
+    executive_summary: buildExecutiveSummary(summary, healthScore),
+    health_score: healthScore,
+    status: healthScore >= 75 ? "bom" : healthScore >= 45 ? "atencao" : "critico",
+    key_findings: keyFindings,
+    alerts,
+    recommendations,
+    next_actions: nextActions.length ? nextActions : ["Acompanhar respostas, interessados e CPL nas próximas 24 horas."],
+    generated_at: new Date().toISOString(),
+    source: "heuristic"
+  };
+}
+
+function calculateHealthScore(summary: ReturnType<typeof buildSummary>) {
+  if (summary.leads === 0) return 0;
+  let score = 55;
+  if (summary.response_rate >= 20) score += 20;
+  else if (summary.response_rate >= 10) score += 10;
+  else if (summary.leads >= 10) score -= 15;
+
+  if (summary.interested > 0) score += Math.min(15, rate(summary.interested, summary.leads));
+  if (summary.errors > 0) score -= Math.min(15, summary.errors * 3);
+  if (summary.opt_outs > 0) score -= Math.min(15, rate(summary.opt_outs, summary.leads));
+  if (summary.spend > 0 && summary.leads === 0) score -= 20;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function buildExecutiveSummary(summary: ReturnType<typeof buildSummary>, healthScore: number) {
+  if (summary.leads === 0) return "Ainda não há dados suficientes para avaliar campanhas de Meta Ads.";
+  if (healthScore >= 75) return "As campanhas apresentam sinais saudáveis, com geração de leads e resposta comercial útil.";
+  if (healthScore >= 45) return "As campanhas já geram dados úteis, mas existem pontos de atenção em resposta, qualidade ou processamento.";
+  return "As campanhas exigem revisão antes de escalar investimento, pois os sinais comerciais ainda estão frágeis.";
+}
+
+function mergeLists(primary: string[], fallback: string[]) {
+  return Array.from(new Set([...primary, ...fallback].filter(Boolean))).slice(0, 8);
 }

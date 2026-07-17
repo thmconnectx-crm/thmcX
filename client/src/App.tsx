@@ -40,6 +40,7 @@ import type {
   MetaAdsReport,
   MetaAdsReportRow,
   Message,
+  MarketingReportAnalysis,
   ProspectingCompany,
   ProspectingSearch,
   ProspectingSearchResponse,
@@ -1460,13 +1461,26 @@ function AutomationsView() {
 
 function ReportsView() {
   const [report, setReport] = useState<MetaAdsReport | null>(null);
+  const [analysis, setAnalysis] = useState<MarketingReportAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   useEffect(() => {
     void request<MetaAdsReport>("/reports/meta-ads")
       .then(setReport)
       .catch((item) => setError(item instanceof Error ? item.message : "Não foi possível carregar o relatório."));
   }, []);
+
+  async function loadAnalysis() {
+    setAnalysisLoading(true);
+    try {
+      setAnalysis(await request<MarketingReportAnalysis>("/reports/meta-ads/analysis"));
+    } catch (item) {
+      setError(item instanceof Error ? item.message : "Não foi possível gerar análise da IA.");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }
 
   const summaryCards = report
     ? [
@@ -1490,11 +1504,18 @@ function ReportsView() {
             <h2 className="section-title">Relatórios</h2>
             <p className="section-copy">Primeira visão de tráfego pago: atribuição de leads vindos de Meta Ads.</p>
           </div>
-          <span className="status-badge bg-ink text-white">Meta Ads</span>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-primary" onClick={loadAnalysis} disabled={analysisLoading}>
+              <Bot size={16} />
+              {analysisLoading ? "Analisando" : "Analisar com IA"}
+            </button>
+            <span className="status-badge bg-ink text-white">Meta Ads</span>
+          </div>
         </div>
       </div>
 
       {error && <div className="panel p-4 text-sm text-ink">{error}</div>}
+      {analysis && <AiReportAnalysisCard analysis={analysis} />}
 
       {!report && !error && <EmptyState title="Carregando relatório." text="Consultando leads, respostas e origens atribuídas ao Meta Ads." />}
 
@@ -1556,6 +1577,91 @@ function ReportsView() {
         </>
       )}
     </section>
+  );
+}
+
+function AiReportAnalysisCard({ analysis }: { analysis: MarketingReportAnalysis }) {
+  return (
+    <div className="panel overflow-hidden">
+      <div className="border-b border-line bg-ink p-6 text-white">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-white/55">Análise inteligente</p>
+            <h3 className="mt-2 text-2xl font-bold">Saúde da operação: {analysis.health_score}/100</h3>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">{analysis.executive_summary}</p>
+          </div>
+          <div className="rounded-xl border border-white/15 px-4 py-3 text-right">
+            <p className="text-xs uppercase text-white/50">Origem</p>
+            <strong className="mt-1 block text-sm">{analysis.source === "ai" ? "IA" : "Diagnóstico automático"}</strong>
+            <span className="mt-2 inline-flex rounded-full border border-white/15 px-2 py-1 text-xs text-white/70">{analysisStatusLabel(analysis.status)}</span>
+          </div>
+        </div>
+      </div>
+
+      {analysis.ai_error && (
+        <div className="border-b border-line bg-wash px-6 py-4 text-sm text-muted">
+          A IA não respondeu agora; exibindo diagnóstico automático. Detalhe: {analysis.ai_error}
+        </div>
+      )}
+
+      <div className="grid gap-6 p-6 xl:grid-cols-3">
+        <AnalysisList title="Principais leituras" items={analysis.key_findings} />
+        <div>
+          <h4 className="text-sm font-semibold text-ink">Alertas</h4>
+          <div className="mt-3 space-y-3">
+            {analysis.alerts.length === 0 && <p className="text-sm text-muted">Nenhum alerta crítico com os dados atuais.</p>}
+            {analysis.alerts.map((alert) => (
+              <div key={`${alert.title}-${alert.metric ?? ""}`} className="rounded-xl border border-line bg-wash p-4">
+                <span className="status-badge text-muted">{alertSeverityLabel(alert.severity)}</span>
+                <strong className="mt-3 block text-sm">{alert.title}</strong>
+                <p className="mt-1 text-sm leading-6 text-muted">{alert.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-ink">Próximas ações</h4>
+          <ol className="mt-3 space-y-2 text-sm text-muted">
+            {analysis.next_actions.map((action, index) => (
+              <li key={action} className="rounded-xl border border-line bg-white p-3">
+                <span className="mr-2 font-semibold text-ink">{index + 1}.</span>
+                {action}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+
+      <div className="border-t border-line p-6">
+        <h4 className="text-sm font-semibold text-ink">Recomendações</h4>
+        <div className="mt-3 grid gap-3 lg:grid-cols-3">
+          {analysis.recommendations.map((recommendation) => (
+            <div key={recommendation.title} className="rounded-xl border border-line bg-white p-4">
+              <span className="status-badge text-muted">Prioridade {recommendation.priority}</span>
+              <strong className="mt-3 block text-sm">{recommendation.title}</strong>
+              <p className="mt-2 text-sm leading-6 text-muted">{recommendation.action}</p>
+              <p className="mt-3 text-xs leading-5 text-muted">Impacto esperado: {recommendation.expected_impact}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnalysisList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <h4 className="text-sm font-semibold text-ink">{title}</h4>
+      <div className="mt-3 space-y-2">
+        {items.length === 0 && <p className="text-sm text-muted">Sem leituras suficientes ainda.</p>}
+        {items.map((item) => (
+          <div key={item} className="rounded-xl border border-line bg-wash p-3 text-sm leading-6 text-muted">
+            {item}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1814,6 +1920,25 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "BRL"
   }).format(value);
+}
+
+function analysisStatusLabel(status: MarketingReportAnalysis["status"]) {
+  const labels: Record<MarketingReportAnalysis["status"], string> = {
+    bom: "Bom",
+    atencao: "Atenção",
+    critico: "Crítico",
+    sem_dados: "Sem dados"
+  };
+  return labels[status];
+}
+
+function alertSeverityLabel(severity: "alta" | "media" | "baixa") {
+  const labels = {
+    alta: "Alta",
+    media: "Média",
+    baixa: "Baixa"
+  };
+  return labels[severity];
 }
 
 function formatDateTime(value?: string) {

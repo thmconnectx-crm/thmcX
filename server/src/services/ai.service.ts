@@ -31,6 +31,29 @@ export type AiReply = {
   opt_out: boolean;
 };
 
+export type MarketingReportAnalysis = {
+  executive_summary: string;
+  health_score: number;
+  status: "bom" | "atencao" | "critico" | "sem_dados";
+  key_findings: string[];
+  alerts: Array<{
+    severity: "alta" | "media" | "baixa";
+    title: string;
+    description: string;
+    metric?: string;
+  }>;
+  recommendations: Array<{
+    priority: "alta" | "media" | "baixa";
+    title: string;
+    action: string;
+    expected_impact: string;
+  }>;
+  next_actions: string[];
+  generated_at: string;
+  source: "ai" | "heuristic";
+  ai_error?: string;
+};
+
 const allowedClassifications: AiClassification[] = [
   "interessado",
   "curioso",
@@ -146,6 +169,56 @@ Se já houver 3 ou mais perguntas e o lead não recusou, encaminhe para humano q
   };
 }
 
+export async function generateMarketingReportAnalysis(report: unknown) {
+  const system = `Você é um analista sênior de tráfego pago e CRM da ThM IX Company.
+
+Sua função é ler métricas de campanhas, leads, respostas, interessados, handoff humano e custos, e devolver uma análise executiva objetiva.
+
+Regras:
+1. Responda em português do Brasil.
+2. Não invente dados que não estejam no relatório.
+3. Seja direto e acionável.
+4. Aponte gargalos, riscos, oportunidades e próximos passos.
+5. Dê prioridade para ações que melhorem custo por lead, taxa de resposta, interessados e handoff humano.
+6. Se houver poucos dados, diga que a leitura ainda é inicial.
+7. Retorne apenas JSON válido.`;
+
+  const prompt = `Analise este relatório de Meta Ads/CRM e gere diagnóstico de performance:
+
+${JSON.stringify(report).slice(0, 22000)}
+
+Formato obrigatório:
+{
+  "executive_summary": "resumo curto",
+  "health_score": 0,
+  "status": "bom|atencao|critico|sem_dados",
+  "key_findings": ["achado 1"],
+  "alerts": [
+    {
+      "severity": "alta|media|baixa",
+      "title": "título",
+      "description": "descrição",
+      "metric": "métrica relacionada"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "alta|media|baixa",
+      "title": "título",
+      "action": "ação prática",
+      "expected_impact": "impacto esperado"
+    }
+  ],
+  "next_actions": ["ação objetiva para hoje"]
+}`;
+
+  const content =
+    env.AI_PROVIDER === "gemini"
+      ? await generateGeminiJson(system, prompt)
+      : await generateOpenAiJson(system, prompt);
+  return normalizeMarketingAnalysis(JSON.parse(content) as Partial<MarketingReportAnalysis>, "ai");
+}
+
 async function generateOpenAiJson(system: string, prompt: string) {
   const response = await getOpenAiClient().chat.completions.create({
     model: env.OPENAI_MODEL,
@@ -231,4 +304,62 @@ function requiresHumanHandoff(message: string) {
     "pode me chamar",
     "me chama"
   ].some((term) => normalized.includes(term));
+}
+
+function normalizeMarketingAnalysis(
+  analysis: Partial<MarketingReportAnalysis>,
+  source: MarketingReportAnalysis["source"],
+  aiError?: string
+): MarketingReportAnalysis {
+  const status = ["bom", "atencao", "critico", "sem_dados"].includes(String(analysis.status))
+    ? (analysis.status as MarketingReportAnalysis["status"])
+    : "atencao";
+  const healthScore = Number.isFinite(Number(analysis.health_score))
+    ? Math.max(0, Math.min(100, Number(analysis.health_score)))
+    : 50;
+
+  return {
+    executive_summary: String(analysis.executive_summary ?? "Análise inicial gerada a partir dos dados disponíveis."),
+    health_score: healthScore,
+    status,
+    key_findings: normalizeStringList(analysis.key_findings),
+    alerts: normalizeAlerts(analysis.alerts),
+    recommendations: normalizeRecommendations(analysis.recommendations),
+    next_actions: normalizeStringList(analysis.next_actions),
+    generated_at: new Date().toISOString(),
+    source,
+    ...(aiError ? { ai_error: aiError } : {})
+  };
+}
+
+function normalizeStringList(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean).slice(0, 8) : [];
+}
+
+function normalizeAlerts(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).map((item) => {
+    const alert = item as Record<string, unknown>;
+    const severity = ["alta", "media", "baixa"].includes(String(alert.severity)) ? String(alert.severity) : "media";
+    return {
+      severity: severity as "alta" | "media" | "baixa",
+      title: String(alert.title ?? "Ponto de atenção"),
+      description: String(alert.description ?? ""),
+      ...(alert.metric ? { metric: String(alert.metric) } : {})
+    };
+  });
+}
+
+function normalizeRecommendations(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).map((item) => {
+    const recommendation = item as Record<string, unknown>;
+    const priority = ["alta", "media", "baixa"].includes(String(recommendation.priority)) ? String(recommendation.priority) : "media";
+    return {
+      priority: priority as "alta" | "media" | "baixa",
+      title: String(recommendation.title ?? "Recomendação"),
+      action: String(recommendation.action ?? ""),
+      expected_impact: String(recommendation.expected_impact ?? "")
+    };
+  });
 }

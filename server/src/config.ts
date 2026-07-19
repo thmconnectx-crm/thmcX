@@ -31,7 +31,9 @@ const baseEnvSchema = z.object({
   GEMINI_API_KEY: text(),
   GEMINI_MODEL: text("gemini-3.5-flash"),
   GOOGLE_PLACES_API_KEY: text(),
-  OVERPASS_API_URL: text("https://overpass-api.de/api/interpreter")
+  OVERPASS_API_URL: text("https://overpass-api.de/api/interpreter"),
+  REPORT_MONITOR_ENABLED: enumText(["true", "false"], "true"),
+  REPORT_MONITOR_INTERVAL_MINUTES: z.coerce.number().int().min(5).default(60)
 });
 
 const requiredInProduction = [

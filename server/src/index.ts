@@ -1,9 +1,11 @@
 import { app } from "./app.js";
 import { env } from "./config.js";
+import { startReportMonitor } from "./services/report-monitor.service.js";
 
 const server = app.listen(env.PORT, () => {
   console.log(`API listening on http://localhost:${env.PORT}`);
 });
+const stopReportMonitor = startReportMonitor();
 
 let shuttingDown = false;
 
@@ -11,6 +13,7 @@ function shutdown(signal: NodeJS.Signals) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`${signal} received. Closing HTTP server...`);
+  stopReportMonitor();
 
   const timeout = setTimeout(() => {
     console.error("Graceful shutdown timeout reached. Exiting.");

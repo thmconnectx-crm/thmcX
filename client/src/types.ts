@@ -139,6 +139,30 @@ export type MarketingReportAnalysis = {
   ai_error?: string;
 };
 
+export type ReportNotification = {
+  id: string;
+  source: string;
+  severity: "info" | "baixa" | "media" | "alta";
+  title: string;
+  body: string;
+  payload?: MarketingReportAnalysis;
+  read_at?: string | null;
+  created_at: string;
+};
+
+export type ReportMonitorStatus = {
+  enabled: boolean;
+  interval_minutes: number;
+  unread_notifications: number;
+  last_run?: {
+    id: string;
+    status: string;
+    analysis?: MarketingReportAnalysis;
+    error_message?: string | null;
+    created_at: string;
+  } | null;
+};
+
 export type ProspectingSearch = {
   id: string;
   keyword: string;

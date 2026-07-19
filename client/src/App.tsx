@@ -44,6 +44,8 @@ import type {
   ProspectingCompany,
   ProspectingSearch,
   ProspectingSearchResponse,
+  ReportMonitorStatus,
+  ReportNotification,
   SetupStatus,
   SystemCheck,
   WhatsAppTemplate
@@ -1462,24 +1464,31 @@ function AutomationsView() {
 function ReportsView() {
   const [report, setReport] = useState<MetaAdsReport | null>(null);
   const [analysis, setAnalysis] = useState<MarketingReportAnalysis | null>(null);
+  const [notifications, setNotifications] = useState<ReportNotification[]>([]);
+  const [monitorStatus, setMonitorStatus] = useState<ReportMonitorStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-
   useEffect(() => {
-    void request<MetaAdsReport>("/reports/meta-ads")
-      .then(setReport)
-      .catch((item) => setError(item instanceof Error ? item.message : "Não foi possível carregar o relatório."));
+    const load = () => {
+      void request<MetaAdsReport>("/reports/meta-ads")
+        .then(setReport)
+        .catch((item) => setError(item instanceof Error ? item.message : "Não foi possível carregar o relatório."));
+      void request<ReportMonitorStatus>("/reports/monitor/status").then((status) => {
+        setMonitorStatus(status);
+        const lastAnalysis = status.last_run?.analysis;
+        if (lastAnalysis) setAnalysis(lastAnalysis);
+      });
+      void request<ReportNotification[]>("/reports/notifications").then(setNotifications);
+    };
+    load();
+    const interval = window.setInterval(load, 60000);
+    return () => window.clearInterval(interval);
   }, []);
 
-  async function loadAnalysis() {
-    setAnalysisLoading(true);
-    try {
-      setAnalysis(await request<MarketingReportAnalysis>("/reports/meta-ads/analysis"));
-    } catch (item) {
-      setError(item instanceof Error ? item.message : "Não foi possível gerar análise da IA.");
-    } finally {
-      setAnalysisLoading(false);
-    }
+  async function markNotificationRead(notificationId: string) {
+    await request(`/reports/notifications/${notificationId}/read`, { method: "PATCH" });
+    setNotifications((items) =>
+      items.map((item) => (item.id === notificationId ? { ...item, read_at: new Date().toISOString() } : item))
+    );
   }
 
   const summaryCards = report
@@ -1504,17 +1513,17 @@ function ReportsView() {
             <h2 className="section-title">Relatórios</h2>
             <p className="section-copy">Primeira visão de tráfego pago: atribuição de leads vindos de Meta Ads.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-primary" onClick={loadAnalysis} disabled={analysisLoading}>
-              <Bot size={16} />
-              {analysisLoading ? "Analisando" : "Analisar com IA"}
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="status-badge bg-white text-ink">
+              Monitor {monitorStatus?.enabled ? "ativo" : "inativo"} · {monitorStatus?.interval_minutes ?? 60} min
+            </span>
             <span className="status-badge bg-ink text-white">Meta Ads</span>
           </div>
         </div>
       </div>
 
       {error && <div className="panel p-4 text-sm text-ink">{error}</div>}
+      <ReportNotificationsPanel notifications={notifications} onRead={markNotificationRead} monitorStatus={monitorStatus} />
       {analysis && <AiReportAnalysisCard analysis={analysis} />}
 
       {!report && !error && <EmptyState title="Carregando relatório." text="Consultando leads, respostas e origens atribuídas ao Meta Ads." />}
@@ -1577,6 +1586,61 @@ function ReportsView() {
         </>
       )}
     </section>
+  );
+}
+
+function ReportNotificationsPanel({
+  notifications,
+  monitorStatus,
+  onRead
+}: {
+  notifications: ReportNotification[];
+  monitorStatus: ReportMonitorStatus | null;
+  onRead: (notificationId: string) => void;
+}) {
+  const unread = notifications.filter((item) => !item.read_at).length;
+
+  return (
+    <div className="panel overflow-hidden">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line p-5">
+        <div>
+          <h3 className="section-title">Monitoramento automático</h3>
+          <p className="section-copy">
+            O sistema analisa campanhas automaticamente a cada {monitorStatus?.interval_minutes ?? 60} minutos e registra notificações aqui.
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="status-badge bg-ink text-white">{unread} não lida(s)</span>
+          <p className="mt-2 text-xs text-muted">
+            Última leitura: {monitorStatus?.last_run?.created_at ? formatDateTime(monitorStatus.last_run.created_at) : "Aguardando primeira análise"}
+          </p>
+        </div>
+      </div>
+
+      {notifications.length === 0 ? (
+        <div className="p-6 text-sm text-muted">Nenhuma notificação registrada ainda. A primeira análise automática aparece assim que o monitor rodar.</div>
+      ) : (
+        <div className="divide-y divide-line">
+          {notifications.slice(0, 5).map((notification) => (
+            <div key={notification.id} className={`grid gap-3 p-5 lg:grid-cols-[1fr_auto] ${notification.read_at ? "bg-white" : "bg-wash"}`}>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="status-badge text-muted">{alertSeverityLabel(notification.severity === "info" ? "baixa" : notification.severity)}</span>
+                  <span className="text-xs text-muted">{formatDateTime(notification.created_at)}</span>
+                </div>
+                <strong className="mt-2 block text-sm text-ink">{notification.title}</strong>
+                <p className="mt-1 text-sm leading-6 text-muted">{notification.body}</p>
+              </div>
+              {!notification.read_at && (
+                <button className="btn-secondary self-center" onClick={() => onRead(notification.id)}>
+                  Marcar como lida
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

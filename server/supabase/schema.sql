@@ -186,6 +186,27 @@ create table if not exists meta_ad_insights (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists report_monitor_runs (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants(id) on delete cascade,
+  status text not null default 'completed',
+  analysis jsonb not null default '{}'::jsonb,
+  error_message text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists report_notifications (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants(id) on delete cascade,
+  source text not null default 'meta_ads_monitor',
+  severity text not null default 'info' check (severity in ('info', 'baixa', 'media', 'alta')),
+  title text not null,
+  body text not null,
+  payload jsonb not null default '{}'::jsonb,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists prospecting_searches (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references tenants(id) on delete cascade,
@@ -324,6 +345,9 @@ create index if not exists meta_ad_insights_date_idx on meta_ad_insights(tenant_
 create index if not exists meta_ad_insights_campaign_idx on meta_ad_insights(tenant_id, campaign_name);
 create index if not exists meta_ad_insights_adset_idx on meta_ad_insights(tenant_id, adset_name);
 create index if not exists meta_ad_insights_ad_idx on meta_ad_insights(tenant_id, ad_name);
+create index if not exists report_monitor_runs_tenant_created_idx on report_monitor_runs(tenant_id, created_at desc);
+create index if not exists report_notifications_tenant_created_idx on report_notifications(tenant_id, created_at desc);
+create index if not exists report_notifications_tenant_unread_idx on report_notifications(tenant_id, read_at) where read_at is null;
 create index if not exists prospecting_searches_tenant_id_idx on prospecting_searches(tenant_id);
 create index if not exists prospecting_companies_tenant_id_idx on prospecting_companies(tenant_id);
 create index if not exists prospecting_companies_source_provider_idx on prospecting_companies(tenant_id, source_provider);
@@ -376,6 +400,8 @@ alter table integration_logs enable row level security;
 alter table lead_source_history enable row level security;
 alter table whatsapp_templates enable row level security;
 alter table meta_ad_insights enable row level security;
+alter table report_monitor_runs enable row level security;
+alter table report_notifications enable row level security;
 alter table prospecting_searches enable row level security;
 alter table prospecting_companies enable row level security;
 
@@ -396,5 +422,7 @@ create policy integration_logs_by_jwt_tenant on integration_logs using (tenant_i
 create policy lead_source_history_by_jwt_tenant on lead_source_history using (tenant_id = current_tenant_id()) with check (tenant_id = current_tenant_id());
 create policy whatsapp_templates_by_jwt_tenant on whatsapp_templates using (tenant_id = current_tenant_id()) with check (tenant_id = current_tenant_id());
 create policy meta_ad_insights_by_jwt_tenant on meta_ad_insights using (tenant_id = current_tenant_id()) with check (tenant_id = current_tenant_id());
+create policy report_monitor_runs_by_jwt_tenant on report_monitor_runs using (tenant_id = current_tenant_id()) with check (tenant_id = current_tenant_id());
+create policy report_notifications_by_jwt_tenant on report_notifications using (tenant_id = current_tenant_id()) with check (tenant_id = current_tenant_id());
 create policy prospecting_searches_by_jwt_tenant on prospecting_searches using (tenant_id = current_tenant_id()) with check (tenant_id = current_tenant_id());
 create policy prospecting_companies_by_jwt_tenant on prospecting_companies using (tenant_id = current_tenant_id()) with check (tenant_id = current_tenant_id());
